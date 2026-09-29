@@ -100,6 +100,11 @@
 
 - 新增 `tests/session-own-events.test.js`（3 例）：① `hasReadSkill()` 在只有 `ownEvents()` 的会话形状下必须为 `true`（否则 issue #90 复发）、无 `ownEvents` 时退回 `.events`、两者都无时保守 `false`；② `resolveSessionImage()` 在 `ownEvents()` 形状下能读到本会话图片；③ 「读不到会话事件」与「读得到但没有图片」必须给出不同结论（钉住上面那条 `?? []` 陷阱）。
 - 相关套件全绿：`skills` 13、`skills-manager` 18、`notify` 42、`notify-web` 4、`coi-attachments` 12、`session-orch` 18、`broadcast-image` 19、`plugin` 35。
+## 2026-09-29
+
+### 修复
+
+- **记忆写入的分隔符约束只有拒绝、没有预告——模型要撞一次错才知道**：`§` 是记忆文件的条目分隔符（`lib/store.js` 的 `ENTRY_DELIMITER = '\n§\n'`），正文携带会在下次解析时**静默把一条拆成两条**，所以 `add` / `replace` / 归档重写三处一律拒绝。拒绝本身是对的，问题在**约束只出现在错误信息里**：模型在「决定写什么」的那一刻看不到它，只能写完被拒、再改写重试（实测同一会话连续两次被拒，第二次的成因还是「为了解释这条规则，把该字符本身写进了正文」）。修复＝把约束前移到**写入时刻可见的三处**：① `param.content` 参数描述（中英）写明不得包含该字符、带即整单拒绝、引用章节改写为「节 N.N」，并显式提示「解释这条规则时也不要把该字符写进正文」；② `param.entries` 补同一约束（每轮收尾的批量写是主路径）；③ 快照收尾写入指引 `snap.batchWriteDuty` 与 `snap.keyDuty` 各补一句「写入前自查」（这是模型计划本轮写什么的那一刻）。另把拒绝文案（`msg.sectionContainsDelimiter`）从「只说不能」改成「不能 + 怎么改」（删掉该字符后重试；引用章节改写为「节 N.N」）。纯文案增量、机制零变化；新增 `tests/separator-disclosure.test.js` 把「写入前可见」钉成回归契约（含注入必红负向自测）。
 
 ## 2026-09-28
 
