@@ -49,6 +49,27 @@
 - `tests/skills-manager.test.js` 新增 3 例、改写 2 例（假 `agentPresets` 已按 0.2.1 契约改为 `acquireScope()`/`serviceFor()`）：① **回归崩点**——目录里放一条无 `source`/`path` 的运行时技能，列表必须 200、该条 `source: 'runtime'` / `protected: false`，禁用返回明确 403；② **活跃会话视图**——`agents.get(sessionId)` + `serviceFor(agent,'skills')` 命中 preset 挂载组实例、`scope` 收到 Agent 本体、不借 preset lease，预设层独有的技能能显示出来；③ **冷会话/无会话**——走 `acquireScope()` 的 lease key（`view: 'preset'`），无 `agentPresets` 服务时回退无 scope（`view: 'global'`）。全量 **894 例通过**。
 - 端到端：用隔离实例验证真实 composition（`--profile web` + 3099 端口 + `--patch` overlay 关掉 IM/代理插件，避免与常驻实例抢长连接）：`GET /skills-manager/api/skills` 返回 200，`view: 'preset'`，18 条（17 条 `user-agents` + 1 条 `runtime`），`armor-playbook` 的 `source` 已归一化为 `runtime`、`protected: false`。
 
+（以下两段合并自上游 PR #98，作者 @534056668）
+
+### 修复
+
+- **4 个模块 5 处仍直读已移除的 `Session.events`：技能 patch 永久被拒、图片转发与「最后活动」静默失效（issue #90 / #61 / #62，与 #38 / #49 同源）**：DSH 0.1.2-alpha.4 起 `Session` 不再暴露 `.events` 数组（改为 `ownEvents()` / `snapshotEvents()` / `eventAt()`）；#38 只适配了 `lib/review.js`、#49 只适配了 `lib/advisor/*`，另有 5 处读取点漏网，而且都是「读不到就静默降级/拒绝」的形态——不报错，只表现为功能不可用：
+
+  | 位置 | 用户可见后果 |
+  |---|---|
+  | `lib/skills.js` `hasReadSkill()` | `skill_manage action=patch` **永久**返回「更新技能 X 前必须先读取它」，而 `create`/`read`/`list` 正常，看起来像权限问题（issue #90；#61 报告的是同一处的另一条路径） |
+  | `lib/notify.js` `resolveSessionImage()` | `de_channel_send` / `de_notify` 用 `sessionImage: true` / `attachmentId` 转发本会话图片时报「无法读取本会话事件」 |
+  | `lib/notify.js` `querySessionImages()` | `de_session_images` 读不到任何图片（issue #62 的症状之一） |
+  | `lib/coi/attachments.js` `findImageRef()` | 返回 `null`，调用方静默跳过 |
+  | `lib/session-orch.js` `#lastActiveAt()` | 会话列表「最后活动」永远为空（issue #62） |
+
+  修法：`session.ownEvents?.() ?? session.events`——新宿主走 `ownEvents()`、老宿主退回 `.events`，两代行为一致且不抛错。**注意不能顺手补 `?? []`**：这 5 处的守卫是 `if (!Array.isArray(events))`，用来区分「读不到（会话不在本进程）」与「读得到但为空」，补 `?? []` 会把前者短路成后者——实测 `tests/notify.test.js` 立刻红 2 例（`resolveSessionImage` / `querySessionImages` 的「如实降级」断言变成「本会话没有图片」）。
+
+### 测试
+
+- 新增 `tests/session-own-events.test.js`（3 例）：① `hasReadSkill()` 在只有 `ownEvents()` 的会话形状下必须为 `true`（否则 issue #90 复发）、无 `ownEvents` 时退回 `.events`、两者都无时保守 `false`；② `resolveSessionImage()` 在 `ownEvents()` 形状下能读到本会话图片；③ 「读不到会话事件」与「读得到但没有图片」必须给出不同结论（钉住上面那条 `?? []` 陷阱）。
+- 相关套件全绿：`skills` 13、`skills-manager` 18、`notify` 42、`notify-web` 4、`coi-attachments` 12、`session-orch` 18、`broadcast-image` 19、`plugin` 35。
+
 ## 2026-09-28
 
 ### 修复
