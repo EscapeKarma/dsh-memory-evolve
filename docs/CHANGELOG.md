@@ -81,6 +81,19 @@
 - 端到端：用隔离实例验证真实 composition（`--profile web` + 3099 端口 + `--patch` overlay 关掉 IM/代理插件，避免与常驻实例抢长连接）：`GET /skills-manager/api/skills` 返回 200，`view: 'preset'`，18 条（17 条 `user-agents` + 1 条 `runtime`），`armor-playbook` 的 `source` 已归一化为 `runtime`、`protected: false`。
 ## 2026-10-25
 
+
+### 新增
+
+- **全局轨（`memory` / `user`）渐进式披露 + 配置面板两个开关（默认 `off`＝行为不变）**：`keyProgressiveDisclosure` 只解决了 key 轨，而**全量注入的最大头是全局 `MEMORY.md`**——实测本机 486 条 / 518 KB，整份快照 260,744 字符里 257,110 字符（98.6%）来自 memory 段、2,726 字符来自 user 段。新增 `memoryProgressiveDisclosure` / `userProgressiveDisclosure`（`auto` / `off` / `on`，与 key 轨同构、彼此独立）：`on`（或 `auto` 未命中阈值）时两条全局轨改为注入 `- [日期] [短id] 摘要`，模型用 `memory action=expand+id` 取回正文——同一份数据实测 260,744 → **55,130 字符（省 78.9%）**。`auto` 的双阈值是**条目数 ≤ 20 且总字符 ≤ 8000**（key 轨的 3 条 / 1500 字符是为「关键记忆」这一小集合定的，直接沿用会把任何真实全局轨都判成摘要，故单独设阈值）；`off` 保持历史行为逐字节不变（仍在剥掉 `[id:…]` / `[summary:…]` 后全量注入），默认配置下的上下文与升级前完全一致。短 id 取条目身份证，缺身份证时用 `legacyIdFor()` 派生（确定性，不依赖 `syncEnabled`）；日期取条目头部的 `[YYYY-MM-DD]`，没有则省略该字段。注入头同步新增 `snap.memorySummaryHead` / `snap.userSummaryHead`（中英），把「用 `memory action=expand+id` 加载全文」写进提示词——摘要模式下不写这句，模型会把摘要当成记忆全文。
+- **`expand` 从 key 轨扩展到 `memory` / `user` 轨**：摘要注入却没有取全文的手段就是纯损失，因此 `memory` 工具的 `expand` 放开目标（此前只认 `key`，其余返回「expand 仅支持 target=key」）。id 解析与 key 轨同一套规则——优先 `[id:xxxx]`，缺身份证时 `legacyIdFor()` 派生；命中后返回**剥掉 `[id:…]` 与 `[summary:…]` 的正文**（与 key 轨一致：程序元数据不进上下文）；未命中报「未找到 id={id} 的条目」。`msg.expandKeyOnly` / `msg.expandNotFound` 两处文案随之改为三轨通用。
+- **配置面板新增两个下拉（`memory` / `user` 轨渐进式披露）**：`src/client/MemoryQueueView.tsx` 的运行时配置面板加这两项，`src/client/index.ts` 补中英label 与 hint（hint 写明阈值与实测收益；user 轨注明「条目短、收益小，一般保持 off」），保存时随 `keyProgressiveDisclosure` 等一起提交 `/api/config`。宿主侧 `RUNTIME_KEYS` 与 `validateRuntimePatch` 一并放开这两个键（非法值报「必须是 \"auto\" / \"off\" / \"on\"」）。
+
+### 测试
+
+- `tests/progressive-disclosure.test.js` 新增 4 例（沿用同一套 `renderSnapshot` 驱动）：① 全局轨 `off`（默认）全量注入、不出摘要行、两次渲染逐字节一致；② `on` → 摘要行带日期与短 id、正文不注入、`expand` 能按 id 取回全文并剥掉元数据；③ `auto` 双阈值（小数据量全量，条目数或字符数任一超限转摘要——阈值可调小，便于用小数据集覆盖两条分支）；④ 两个开关互相独立，非法值被 `validateRuntimePatch` 拒绝。
+- `tests/client-config-save.test.js` 的面板键表补 `memoryProgressiveDisclosure` / `userProgressiveDisclosure`：该用例断言「面板保存的键集合 == 宿主 RUNTIME_KEYS 的可写子集」，漏一个就红——新开关不接进去会让保存静默丢配置。
+
+
 ### 改进
 
 - **`memory list` 的 `filter` 升级为三级检索语义，并新增 `rank` 参数（修掉「整句提问必然返回空」）**：旧实现是「**整串**大小写不敏感子串 → 时间正序 → limit 截断」，有两个结构性缺陷：① 只接受**一个**子串——中文整句提问（无空格）几乎必然零命中，本机 12 问实测**整句命中@3 = 0/12**，而摘要注入模式下模型恰恰只能靠这个入口找条目（`expand` 需要 id）；② 命中后**没有相关性排序**——泛词会淹没结果（`filter=ST` 命中 171/489 条，首条还是含英文 ST 的无关条目）。新语义按优先级三级：**整串子串（旧语义，命中集逐条不变）→ 多词 OR（空白分词）→ 词法相关性召回（整句兜底，最多 20 条候选）**；`rank: true` 时对命中集再做相关性排序（中文**字符二元组** TF-IDF 余弦 + 关键词覆盖加成 + 同分时新的在前），并返回 `matched`（截断前命中数）与 `filterMode` 元数据、`limit` 截断时在 message 里明说。实现落在新模块 `lib/memory-rank.js`（零依赖、无 import、稀疏索引：共享词表 + 每条例按 dim 升序的 `Int32Array`/`Float32Array`）；`lib/store.js` 的 `query()` 与归档轨的 list 分支**共用同一入口**（此前两处各写一份子串过滤，本仓库已因此出过两次事故）。两处细节是实测逼出来的：① **打分前必须剥掉条目头部的方括号 token**（日期/`[id]`/`[branch]`/`[dsh-only]`/`[summary]`/`[git]`）——日期里的数字若参与打分，两条只有日期不同的同文条目会因"词表多了几个数字"而得分不同，「同分时新的在前」永远轮不到（本机实测翻车后修正）；② **`rank: true` 时 `recent` 的反转必须让位**，否则排序被倒过来。兼容性：不传 `rank` 时旧**整串命中集**逐条不变（含空格且整串确实命中的旧调用完全不受影响），只有"旧实现返回空"的那类查询才走新兜底；空字符串/纯空白 `filter` 视作不过滤（旧实现会按空白串匹配、返回空）。**不做向量**（本机实测：本地 `nomic-embed-text` 中文命中@3 仅 2/12，低于本模块 4/12，且要引入常驻 Ollama 依赖）。实测（本机真实记忆 489 条）：整句 P@3 0/12 → **4/12**（P@1 2/12、MRR 0.257）；带关键词 + `rank:true` 时 P@1 5/12 → **7/12**、P@3 6/12 → **8/12**、MRR 0.465 → **0.642**；489 条首次查询（含建索引）< 50 ms、缓存命中 < 20 ms；索引为稀疏定长数组，全局轨**稳态（GC 后）约 3.1 MB 堆**（建索引期间的临时对象峰值约 9.1 MB；等价 `Map<token, weight>` 口径会是 34.6 MB，切忌换回去）。
