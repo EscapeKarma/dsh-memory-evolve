@@ -55,6 +55,16 @@ All version changes for this repository, in reverse chronological order.
 
 - New `tests/session-own-events.test.js` (3 cases): (1) `hasReadSkill()` must be `true` for a session carrying only `ownEvents()` (otherwise issue #90 returns), falls back to `.events` when `ownEvents` is absent, and conservatively returns `false` when neither exists; (2) `resolveSessionImage()` reads this session's images through the `ownEvents()` shape; (3) "cannot read the session's events" and "readable but no images" must give different answers (this pins the `?? []` trap above).
 - Related suites all green: `skills` 13, `skills-manager` 18, `notify` 42, `notify-web` 4, `coi-attachments` 12, `session-orch` 18, `broadcast-image` 19, `plugin` 35.
+## 2026-11-01
+
+### Fixes
+
+- **`de_notify` / `de_channel_send` attachment file names lost: everything showed up as `file.bin` in IM**: the tool schema promised path/url attachments get their `fileName` auto-inferred, but the send kernels (`lib/notify.js`) passed raw attachment objects straight to the channel's `entry.sendMedia` — channels read `path`/`url` themselves, yet nobody ever extracted the display name from the path; without a `fileName` the channel falls back to the placeholder `file.bin` (observed: sending `Cloudreve-Music-Player-0.2.80-x64-setup.exe`, the user's Feishu showed `file.bin` — content intact, name destroyed). Fix lives in the kernel as a single source: `withInferredFileName()` — explicit `fileName` > path basename (both `\` and `/` separators, so Windows paths work too) > url pathname basename (query string stripped); base64 stays untouched (the kernel never invents names, channel fallback semantics unchanged). Both send kernels wired in; the web channel is unaffected (its image attachments have their own `resolveAttachments` naming).
+
+### Tests
+
+- `tests/notify.test.js`: +8 cases — ① path without fileName → basename inferred (incl. CJK file names); ② url → pathname basename with query stripped; ③ explicit fileName wins over path; ④ base64 without fileName passes through untouched; ⑤ Windows backslash paths resolve on both separators; ⑥ `de_notify` attachments share the same inference (single source across kernels); ⑦ content-as-caption merge coexists with fileName inference; ⑧ malformed url does not crash and leaves fileName absent. Mutation check: removing either wiring point turns 5 tests red; restoring them keeps `notify.test.js` at 50/50.
+
 ## 2026-10-30
 
 ### Fixed
