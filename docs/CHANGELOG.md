@@ -8,12 +8,15 @@
 
 ### 修复
 
+- **热重载 / 插件回收后整页掉样式（`<style>` 没有 `data-plugin` 归属，#89、#83、#56）**：DSH 客户端用 `<style>` 上的 `data-plugin` 维护样式归属账本——物化插件时会把页面上**所有没有归属的 `<style>`** 认领到该插件名下，插件重载时再按归属删除。本插件 11 处运行时注入只写了私有标记（`data-memory-evolve-css` 等）却没写 `data-plugin`，于是双向受伤：自己的样式被之后物化的任意插件认领走、那个插件一重载就整页没 CSS（刷新才恢复），本插件重载时又会把别人的孤儿标签一起删掉。修复分两步：**A. 补归属** —— 新增 `src/client/style-tag.ts`（`STYLE_OWNER = 'dsh-memory-evolve'`，归属键必须等于包名＝Loader 条目 id），11 处注入（`src/client/index.ts` 的 10 个 `ctx.effect` 与 `src/client/canvas-grok/index.ts` 的 `injectCanvasStyles()`）统一改为 `claimStyleOwnership(tag)`，守卫分支命中已存在标签时**顺手抢回归属**（修复历史遗留的误认领）；**B. 不随 dispose 移除** —— 注入守卫（「已存在就跳过创建」）叠加「dispose 时 `tag.remove()`」会形成「新一轮不再创建、卸载阶段删掉上一轮那张」的死局，合并上游 PR #56（by [@dsh-external](https://github.com/dsh-external)）把 11 处改为**注入一次、不注册移除动作**（样式是文档级常量，随文档销毁）。自查：页面 Console 里 `document.querySelectorAll('style:not([data-plugin])').length` 应为 0。
 - **确认 / 删除一条待确认记忆会让整个记忆 Tab 重刷一遍（列表闪「加载中」、没提交的编辑被清空）**：症状是在「待确认」子 Tab 上每点一次采纳 / 归档 / 拒绝，整块界面就重新加载一次，连点几条很卡、手感断断续续。拆开看是三条链路叠在一起：① 会话页 Tab 上的待确认红点数字只能靠「dispose + 重新注册 slot」刷新（DSH `ui-slots` 的 `register()` 只返回 dispose，没有就地更新 label 的 API），而重新注册会让 `MemoryTabView` 整体卸载重建；② 队列状态与编辑草稿都留在组件里，重挂即回到 `null` → 闪「加载中」→ 再拉一遍；③ 每次操作成功后客户端都调 `load()` 把 `/api/suggestions` + `/api/pending-skills` + `/api/config` **三个接口全量重拉**，并顺手 `setEdits({})` / `setTargetPicks({})` 把用户在其他条目上**还没提交的正文编辑与改轨选择一起清掉**（草稿原先按服务端 1-based 序号存，删一条后面条目整体前移、草稿必然错位，所以只能全清）。一次点击 ≈ 6 个 HTTP 请求 + 一次整 Tab 重挂 + 一次编辑丢失。修复分两步：**A. 就地更新** —— `lib/review.js` 的 `approveSuggestions` / `rejectSuggestions` / `archiveSuggestions` 报告新增 `removedIndices`（**真正离开队列**的 1-based 序号；写失败、归档失败、待办功能关闭的条目会留在队列里且**不列入**），客户端据此精确删掉那几行、不再重拉；紧随其后再做一次**静默对账**（只重拉 `/api/suggestions` 一个接口，不清空界面、不闪空窗、不丢草稿）——`removedIndices` 报的是服务端处理请求那一刻的位次，与本地快照之间可能已有别的会话入队，对账一次即可消除位次漂移；待确认技能同样按名字就地移除。**B. 状态提到模块级** —— 新增 `src/client/memory-queue-store.ts`，队列数据、编辑草稿、目标轨选择、配置草稿都放在模块级（记忆 / 技能 / 待办 / 设置四个共用本视图的 Tab 一起受益），重挂只是重渲染；草稿改按「条目稳定键」（时间 + 轨 + 正文）存，删除条目不再错位，因而可以只清理被删条目的草稿、保留其余未提交的编辑。记忆 Tab 的文件列表（`MemoryTabView`）同样加了按会话分桶的缓存：重挂先用缓存渲染，只有缓存过期（10s）才后台刷新，文件页签行与条目列表不再闪空窗；刷新失败时保留旧数据，不再把已有内容清空。**副作用（有意）**：本地队列在操作成功后即视为与服务端同步（30s 新鲜期），此窗口内的 Tab 重挂不再多余地拉一次列表；超过新鲜期仍会静默刷新一次，刷新期间旧数据继续显示。
 
 ### 测试
 
 - 新增 `tests/suggestion-report.test.js`（6 例）：钉住 `removedIndices` 的准确性——写失败的条目必须留在队列且不列入（少报会让界面「点了没反应」，多报会吞掉没写成功的条目）、重复建议算作已消费、reject 的跳号与不存在序号不虚报、归档失败保留、待办功能关闭时待办建议保留而记忆建议照常处理。`tests/api.test.js` 的 approve/reject 用例增加路由透传断言。
 - 新增 `tests/client-queue-inplace.test.js`（8 例）：与 `client-config-save.test.js` 同款的**源码 + 构建产物**静态契约——操作路径必须走 `applyRemovedIndices(report.removedIndices)` / `removePendingSkill(name)` 而不得回到整块重拉、不得再出现 `setEdits({})` 整体清空、队列状态必须来自模块级 store、草稿必须按 `suggestionKey(entry)` 读写（同时请求体仍按服务端原始序号对齐）、产物必须随源码重建。
+
+- 新增 `tests/style-ownership.test.js`（4 例）：静态护栏——每处 `document.createElement('style')` 之后必须紧跟 `claimStyleOwnership(tag)`、每处「已存在则跳过」的守卫必须抢回归属、归属键必须等于 `package.json` 的 `name`、构建产物 `lib/client.js` 里注入点与归属标记必须一一对应（防止改了源码忘记重建）。
 
 ## 2026-11-24 · v0.2.0（首个社区维护版本）
 

@@ -9,6 +9,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { Translate } from '@deepseek-ai/dsh-client-ui-slots'
 import { CanvasView } from './CanvasView.tsx'
 import { STYLE_ATTR } from './constants.ts'
+import { claimStyleOwnership } from '../style-tag.ts'
 import styles from './styles.css'
 
 /**
@@ -50,8 +51,12 @@ export interface RegisterCanvasTabOpts {
 function injectCanvasStyles(): () => void {
   if (typeof document === 'undefined') return () => {}
   const existing = document.querySelector(`style[${STYLE_ATTR}]`)
-  if (existing !== null) return () => {}
+  if (existing !== null) {
+    claimStyleOwnership(existing)
+    return () => {}
+  }
   const tag = document.createElement('style')
+  claimStyleOwnership(tag)
   tag.setAttribute(STYLE_ATTR, '1')
   tag.textContent = styles
   document.head.appendChild(tag)

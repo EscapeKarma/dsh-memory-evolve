@@ -41,6 +41,7 @@ import { createSessionFilter } from './session-filter.ts'
 import { createWideBubble, createWideChat } from './wide-chat.ts'
 import { createContextMeterWarn } from './context-meter-warn.ts'
 import { createMermaidRenderer } from './mermaid-render.ts'
+import { claimStyleOwnership } from './style-tag.ts'
 import { FEATURES_EVENT, readFeatures } from './ui-settings-features.ts'
 import styles from './styles.css'
 import coiStyles from './coi-styles.css'
@@ -1793,8 +1794,12 @@ export function apply(ctx: Context): void {
   ctx.effect(() => {
     if (typeof document === 'undefined') return () => {}
     const existing = document.querySelector('style[data-memory-evolve-css]')
-    if (existing !== null) return () => {}
+    if (existing !== null) {
+      claimStyleOwnership(existing)
+      return () => {}
+    }
     const tag = document.createElement('style')
+    claimStyleOwnership(tag)
     tag.dataset.memoryEvolveCss = '1'
     tag.textContent = styles
     document.head.appendChild(tag)
@@ -1806,8 +1811,12 @@ export function apply(ctx: Context): void {
   ctx.effect(() => {
     if (typeof document === 'undefined') return () => {}
     const existing = document.querySelector('style[data-skill-browser-css]')
-    if (existing !== null) return () => {}
+    if (existing !== null) {
+      claimStyleOwnership(existing)
+      return () => {}
+    }
     const tag = document.createElement('style')
+    claimStyleOwnership(tag)
     tag.dataset.skillBrowserCss = '1'
     tag.textContent = skillBrowserStyles
     document.head.appendChild(tag)
@@ -1818,8 +1827,12 @@ export function apply(ctx: Context): void {
   ctx.effect(() => {
     if (typeof document === 'undefined') return () => {}
     const existing = document.querySelector('style[data-coi-css]')
-    if (existing !== null) return () => {}
+    if (existing !== null) {
+      claimStyleOwnership(existing)
+      return () => {}
+    }
     const tag = document.createElement('style')
+    claimStyleOwnership(tag)
     tag.dataset.coiCss = '1'
     tag.textContent = coiStyles
     document.head.appendChild(tag)
@@ -1830,8 +1843,12 @@ export function apply(ctx: Context): void {
   ctx.effect(() => {
     if (typeof document === 'undefined') return () => {}
     const existing = document.querySelector('style[data-broadcast-css]')
-    if (existing !== null) return () => {}
+    if (existing !== null) {
+      claimStyleOwnership(existing)
+      return () => {}
+    }
     const tag = document.createElement('style')
+    claimStyleOwnership(tag)
     tag.dataset.broadcastCss = '1'
     tag.textContent = broadcastStyles
     document.head.appendChild(tag)
@@ -1842,8 +1859,12 @@ export function apply(ctx: Context): void {
   ctx.effect(() => {
     if (typeof document === 'undefined') return () => {}
     const existing = document.querySelector('style[data-prompt-css]')
-    if (existing !== null) return () => {}
+    if (existing !== null) {
+      claimStyleOwnership(existing)
+      return () => {}
+    }
     const tag = document.createElement('style')
+    claimStyleOwnership(tag)
     tag.dataset.promptCss = '1'
     tag.textContent = promptStyles
     document.head.appendChild(tag)
@@ -1857,8 +1878,12 @@ export function apply(ctx: Context): void {
   ctx.effect(() => {
     if (typeof document === 'undefined') return () => {}
     const existing = document.querySelector('style[data-ui-settings-css]')
-    if (existing !== null) return () => {}
+    if (existing !== null) {
+      claimStyleOwnership(existing)
+      return () => {}
+    }
     const tag = document.createElement('style')
+    claimStyleOwnership(tag)
     tag.dataset.uiSettingsCss = '1'
     tag.textContent = uiSettingsStyles
     document.head.appendChild(tag)
@@ -1872,8 +1897,12 @@ export function apply(ctx: Context): void {
   ctx.effect(() => {
     if (typeof document === 'undefined') return () => {}
     const existing = document.querySelector('style[data-me-mermaid-css]')
-    if (existing !== null) return () => {}
+    if (existing !== null) {
+      claimStyleOwnership(existing)
+      return () => {}
+    }
     const tag = document.createElement('style')
+    claimStyleOwnership(tag)
     tag.dataset.meMermaidCss = '1'
     tag.textContent = mermaidStyles
     document.head.appendChild(tag)
@@ -1885,8 +1914,12 @@ export function apply(ctx: Context): void {
   ctx.effect(() => {
     if (typeof document === 'undefined') return () => {}
     const existing = document.querySelector('style[data-bookmark-css]')
-    if (existing !== null) return () => {}
+    if (existing !== null) {
+      claimStyleOwnership(existing)
+      return () => {}
+    }
     const tag = document.createElement('style')
+    claimStyleOwnership(tag)
     tag.dataset.bookmarkCss = '1'
     tag.textContent = bookmarkStyles
     document.head.appendChild(tag)
@@ -1898,8 +1931,12 @@ export function apply(ctx: Context): void {
   ctx.effect(() => {
     if (typeof document === 'undefined') return () => {}
     const existing = document.querySelector('style[data-advisor-css]')
-    if (existing !== null) return () => {}
+    if (existing !== null) {
+      claimStyleOwnership(existing)
+      return () => {}
+    }
     const tag = document.createElement('style')
+    claimStyleOwnership(tag)
     tag.dataset.advisorCss = '1'
     tag.textContent = advisorStyles
     document.head.appendChild(tag)
@@ -1911,8 +1948,12 @@ export function apply(ctx: Context): void {
   ctx.effect(() => {
     if (typeof document === 'undefined') return () => {}
     const existing = document.querySelector('style[data-notify-css]')
-    if (existing !== null) return () => {}
+    if (existing !== null) {
+      claimStyleOwnership(existing)
+      return () => {}
+    }
     const tag = document.createElement('style')
+    claimStyleOwnership(tag)
     tag.dataset.notifyCss = '1'
     tag.textContent = notificationStyles
     document.head.appendChild(tag)
