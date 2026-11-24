@@ -5,6 +5,8 @@
 > 本指南按真实工作流组织，每个场景讲「适合谁、能做什么、怎么用、会得到什么」。
 >
 > 相关文档：[详细功能说明](README-详细说明.md) · [记忆同步](docs/记忆同步.md) · [更新日志](docs/CHANGELOG.md) · [English](README.en.md)
+>
+> 🔧 **本仓库是 [csyangwen/dsh-memory-evolve](https://github.com/csyangwen/dsh-memory-evolve) 的社区维护 fork**（原作者已长期停更），由 [@EscapeKarma](https://github.com/EscapeKarma) 接手修复 issue 与合并 PR。安装请用下面的 fork 地址。
 
 ---
 
@@ -14,7 +16,7 @@
 
 ```sh
 # 1. 安装到 profile（本地目录用 link:，也可用 git/registry 包地址）
-dsh plugin --profile web add github:csyangwen/dsh-memory-evolve
+dsh plugin --profile web add github:EscapeKarma/dsh-memory-evolve
 
 # 2. 重启 dsh web 即生效
 ```

@@ -5,6 +5,8 @@
 > This guide is organized around real workflows. Each scenario explains "who it's for, what it can do, how to use it, and what you get."
 >
 > Related docs: [Detailed feature guide](README-详细说明.md) · [Memory sync](docs/记忆同步.md) · [Changelog](docs/CHANGELOG.en.md) · [中文](README.md)
+>
+> 🔧 **This repository is a community-maintained fork of [csyangwen/dsh-memory-evolve](https://github.com/csyangwen/dsh-memory-evolve)** (the original author has been inactive for a long time), maintained by [@EscapeKarma](https://github.com/EscapeKarma), who fixes issues and merges PRs. Install from the fork address below.
 
 ---
 
@@ -15,7 +17,7 @@ The plugin ships its own `cordis.patch.yml` (declared via `dsh.bundle.patch`), s
 ```sh
 # 1. Install into the profile (use link: for a local directory; git/registry
 #    package addresses also work)
-dsh plugin --profile web add github:csyangwen/dsh-memory-evolve
+dsh plugin --profile web add github:EscapeKarma/dsh-memory-evolve
 
 # 2. Restart dsh web — done
 ```

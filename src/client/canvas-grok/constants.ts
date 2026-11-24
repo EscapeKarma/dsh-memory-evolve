@@ -150,7 +150,7 @@ export function createSeedNodes(now: number): CanvasNode[] {
       scope: 'project',
       scopeLabel: CURRENT_PROJECT_LABEL,
       projectId: CURRENT_PROJECT_ID,
-      path: '/Users/edgar/.dsh/plugins/dsh-memory-evolve/docs-local',
+      path: '~/projects/dsh-memory-evolve/docs-local',
       placement: defaultPlacement('folder', 720, 280, 2),
       meta: { size: '12 项', mtime: '2026-08-13' },
       createdAt: now - 3_600_000,

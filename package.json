@@ -15,6 +15,31 @@
     "build": "node scripts/build.mjs"
   },
   "license": "MIT",
+  "author": "EscapeKarma",
+  "contributors": [
+    {
+      "name": "dsh-external",
+      "url": "https://github.com/csyangwen/dsh-memory-evolve"
+    }
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/EscapeKarma/dsh-memory-evolve.git"
+  },
+  "homepage": "https://github.com/EscapeKarma/dsh-memory-evolve#readme",
+  "bugs": {
+    "url": "https://github.com/EscapeKarma/dsh-memory-evolve/issues"
+  },
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "memory",
+    "long-term-memory",
+    "skills",
+    "todo",
+    "agent"
+  ],
   "files": [
     "lib/",
     "scripts/",
