@@ -1,4 +1,8 @@
-# dsh-memory-evolve
+# dsh-memory-evolve（详细功能说明）
+
+> **📌 文档状态**：本文是**功能与设计参考手册**（按能力逐条展开，篇幅大、细节多）；面向使用者的场景化指南请看 [README.md](README.md)。文中保留了大量历史设计记录（含「用户拍板」日期），用于解释**为什么这么设计**。
+>
+> **版本同步情况**：截至 **v0.3.0** 已同步的改动——安装方式（`github:EscapeKarma/dsh-memory-evolve`）、维护者与版权、记忆检索按相关度排序、memory/user 轨渐进式披露、待确认队列就地更新、设置入口迁到 DSH 全局「设置 → Memory Evolve」（下文的「Memory Evolve 设置 Tab」即指该页）、构建与 Windows 开发流程。其余章节若与代码有出入，以代码与 [docs/CHANGELOG.md](docs/CHANGELOG.md) 为准——发现不一致欢迎提 issue。
 
 为 DeepSeek Harness 带来「跨会话长期记忆 + 后台自我进化」能力的纯插件实现：**五轨记忆 · git 分支感知 · 回合内自我审查 · 技能自我进化与技能管理器 · 四轨待办 · COI 调度 · 会话广播 · 会话编排 · 会话搜索 · 提示词管理器 · 临时信息便签 · 模型设置 · Web UI 设置**——**零核心修改、零运行时依赖**，随装随用、卸载即净。
 
@@ -307,8 +311,9 @@ DSH 会话之间传递消息的轻量子功能，**独立于 COI 调度框架**�
 报 duplicate loader entry id）：
 
 ```sh
-# 安装到 profile（本地目录用 link:，也可用 git/registry 包地址）
-dsh plugin --profile web add link:/path/to/dsh-memory-evolve
+# 安装到 profile（推荐直接装本 fork 的 GitHub 源；本地目录调试用 link:）
+dsh plugin --profile web add github:EscapeKarma/dsh-memory-evolve
+# 想固定版本：github:EscapeKarma/dsh-memory-evolve#v0.3.0
 ```
 
 如需修改默认配置（如开启回合内记忆审查），在 profile 的 patch 层做 id 覆盖
@@ -366,16 +371,17 @@ agent 会通过 `memory` 工具读写记忆，通过 `skill_manage` 工具管理
 - `memory list target=daily filter=关键词 since=2026-08-01 until=2026-08-06 recent=true limit=10`：查询日志——关键词过滤、日期范围（**daily 支持跨文件查历史日志**）、最新在前、条数上限；**查不到匹配或存在日期无法解析的旧格式条目时，返回会提醒模型去掉过滤条件读取全文核对**；
 - replace/remove 用唯一子串片段匹配。
 
-### 会话页记忆 / 技能 / 待办 / 设置 Tab（唯一管理入口）
+### 全局「设置 → Memory Evolve」+ 会话页记忆 / 技能 / 待办 Tab（唯一管理入口）
 
-会话页顶部有 **记忆 / 技能 / 待办 / Memory Evolve 设置** 四个独立标签页（`memoryTabEnabled` **默认开启**，仅可通过 config.yaml 配置——它不是运行时可改项，避免在 Tab 内关闭后无法找回），是插件的**唯一管理入口**（原设置面板的「记忆管理」已移除，功能全部并入这些 Tab）。每个 Tab 都有一个**「指南」子 Tab**：设置 Tab 的指南是**整个插件所有功能的简单介绍**，其余 Tab 的指南是**各自功能的详细介绍**。
+**设置入口（v0.3.0 起）**：插件总览、运行时配置与版本更新在 DSH 全局设置面板左侧导航的「**Memory Evolve**」里（`settings.section`，id=`memory-evolve`），三个子 Tab：**指南**（整个插件 30 秒速览）/ **配置**（运行时配置，见下）/ **版本**（检测并更新）。
 
-**Memory Evolve 设置 Tab**（放最后，两个子 Tab）：
+**配置**（原「运行时配置」）：`reviewEnabled` / `reviewInterval` / `skillReviewEnabled` / `perTurnProjectWrites` / `perTurnDailyWrites` / `perTurnKeyWrites` / `searchDocsEnabled`（本地文件搜索工具开关）/ `keyProgressiveDisclosure`、`memoryProgressiveDisclosure`、`userProgressiveDisclosure`（渐进式披露）等的表单修改，保存后**立即生效并持久化**（覆盖 config.yaml 对应项，重启不丢）。本地搜索 / COI 调度 / 提示词管理器 / 临时信息 / 画板 / 通知 / 会话评审的**启用开关都在这里**。
 
-- **指南**：整个插件 30 秒速览——五轨记忆、回合内审查、待办、技能、COI 调度、提示词、临时信息、本地搜索、确认制的用途简介；
-- **配置**（原「运行时配置」）：`reviewEnabled` / `reviewInterval` / `skillReviewEnabled` / `perTurnProjectWrites` / `perTurnDailyWrites` / `perTurnKeyWrites` / `searchDocsEnabled`（本地文件搜索工具开关）等的表单修改，保存后**立即生效并持久化**（覆盖 config.yaml 对应项，重启不丢）。本地搜索 / COI 调度 / 提示词管理器 / 临时信息的**启用开关都在这里**。
+**版本**：显示当前版本、检查更新、一键更新（只对 git clone 安装有效）。
 
-![Memory Evolve 设置 Tab](docs/images/设置tab.png)
+会话页顶部则有 **记忆 / 技能 / 待办 / 无限画板 / COI 调度 / 会话广播 / 提示词 / 记忆同步 / 模型设置 / 书签 / 会话评审 / Web UI 设置** 等标签页（`memoryTabEnabled` **默认开启**，仅可通过 config.yaml 配置——它不是运行时可改项，避免在 Tab 内关闭后无法找回）。每个 Tab 都有一个**「指南」子 Tab**：各自功能的详细介绍。
+
+![Memory Evolve 设置页](docs/images/设置tab.png)
 
 **记忆 Tab**：顶部是一行**功能 Tab + 文件页签**（竖线分隔），功能 Tab：
 

@@ -4,6 +4,15 @@ All version changes for this repository, in reverse chronological order.
 
 > [中文](CHANGELOG.md)
 
+## Unreleased
+
+### Docs
+
+- Rewrote the main guide `README.md` and `README.en.md`: restructured into "what this repository is → quick start → 30-second tour (tool table) → 11 scenarios → configuration cheat sheet → FAQ → development and maintenance → release process", and covered the behaviour changes introduced by v0.2.0/v0.3.0 (ranked memory retrieval, progressive disclosure, in-place queue updates, settings moved into global Settings, style ownership, attachment name inference, Windows fixes and security notes); added CI/version/licence badges
+- Added `CONTRIBUTING.md` (issue/PR process, hard requirements, commit style, code conventions), `SECURITY.md` (privilege boundary, implemented mitigations, vulnerability reporting) and `docs/README.md` (documentation index)
+- Added `.github` issue templates (bug report / feature request) and a pull request template; blank issues are disabled and security reports are routed to private advisories
+- `README-详细说明.md`: added a document-status note and version-sync note at the top; the "settings entry" section now describes v0.3.0's global *Settings → Memory Evolve* (Guide / Configuration / Version), and the install command points at this fork's GitHub source
+
 ## 2026-11-24 · v0.3.0 (community fixes merged after the original author went quiet)
 
 ### Changed

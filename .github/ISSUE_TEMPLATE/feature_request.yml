@@ -1,0 +1,42 @@
+name: 功能建议 / Feature request
+description: 想要插件做某件事，或改进现有交互
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        功能建议请重点说清**使用场景**：你在什么情况下做什么事、现在哪里卡住、希望变成什么样。只写「加一个 XX」很难判断值不值得做。
+  - type: textarea
+    id: scenario
+    attributes:
+      label: 使用场景
+      description: 你实际在做什么事的时候需要它？
+      placeholder: 我每天要在三个项目之间切换，现在每次都要……
+    validations:
+      required: true
+  - type: textarea
+    id: pain
+    attributes:
+      label: 现在哪里不舒服
+      description: 现有功能为什么不够用？有临时绕法吗？
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 希望变成什么样
+      description: 可以描述交互（在哪点、点了发生什么），不必给技术方案
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 考虑过的替代方案（可选）
+  - type: dropdown
+    id: scope
+    attributes:
+      label: 影响范围（你的估计）
+      options:
+        - 只影响我自己的用法
+        - 可能影响其他用户
+        - 涉及安全边界（文件访问 / 命令执行 / 权限）
+        - 不确定

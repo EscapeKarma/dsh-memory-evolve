@@ -1,0 +1,74 @@
+name: 问题报告 / Bug report
+description: 插件行为与预期不一致、报错、崩溃、界面异常
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        提之前请先搜索有没有重复 issue。**安全问题不要在这里提**，见 [SECURITY.md](https://github.com/EscapeKarma/dsh-memory-evolve/blob/main/SECURITY.md)。
+  - type: input
+    id: plugin-version
+    attributes:
+      label: 插件版本
+      description: 在「设置 → Memory Evolve → 版本」里看到的版本号，或 `dsh plugin list` 里的版本
+      placeholder: 例如 v0.3.0 / 0.3.0 / 某 commit
+    validations:
+      required: true
+  - type: input
+    id: dsh-version
+    attributes:
+      label: DSH 版本
+      placeholder: 例如 0.2.2-rc.5（设置 → 关于 里可看）
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: 操作系统
+      options:
+        - Windows
+        - macOS
+        - Linux
+        - 其他 / 不确定
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: 发生了什么
+      description: 期望行为 vs 实际行为；越具体越好
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: 复现步骤
+      description: 从「打开 DSH」开始写，包含你说的指令/点的按钮
+      placeholder: |
+        1. 打开会话
+        2. 对 AI 说「……」
+        3. 点「……」
+        4. 出现报错：……
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: 报错原文 / 截图 / 日志
+      description: 直接粘贴报错文本最好；界面问题请附截图
+      render: shell
+  - type: textarea
+    id: config
+    attributes:
+      label: 相关配置（可选）
+      description: 是否改过 `cordis.patch.yml` 或运行时配置？贴相关片段（**不要贴 token/密钥**）
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: 确认
+      options:
+        - label: 我已经完全退出 DSH 再打开过（插件只在进程启动时加载）
+          required: true
+        - label: 我已经搜索过现有 issue
+          required: true

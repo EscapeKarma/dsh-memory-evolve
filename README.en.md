@@ -1,319 +1,400 @@
-# dsh-memory-evolve — Usage Scenario Guide
+# dsh-memory-evolve
 
-> **In one sentence**: Give the AI inside DSH long-term cross-session memory, help you manage todos and skills, and let you orchestrate a team of AI sessions and external AI agents working together — **the more you use it, the more it understands you, and switching sessions never loses context**.
->
-> This guide is organized around real workflows. Each scenario explains "who it's for, what it can do, how to use it, and what you get."
->
-> Related docs: [Detailed feature guide](README-详细说明.md) · [Memory sync](docs/记忆同步.md) · [Changelog](docs/CHANGELOG.en.md) · [中文](README.md)
->
-> 🔧 **This repository is a community-maintained fork of [csyangwen/dsh-memory-evolve](https://github.com/csyangwen/dsh-memory-evolve)** (the original author has been inactive for a long time), maintained by [@EscapeKarma](https://github.com/EscapeKarma), who fixes issues and merges PRs. Install from the fork address below.
+[![CI](https://github.com/EscapeKarma/dsh-memory-evolve/actions/workflows/test.yml/badge.svg)](https://github.com/EscapeKarma/dsh-memory-evolve/actions/workflows/test.yml)
+[![version](https://img.shields.io/github/v/tag/EscapeKarma/dsh-memory-evolve?label=version&color=blue)](https://github.com/EscapeKarma/dsh-memory-evolve/releases)
+[![license](https://img.shields.io/github/license/EscapeKarma/dsh-memory-evolve?color=green)](LICENSE)
+
+> **In one line**: give the AI inside DeepSeek Harness long-term cross-session memory, let it manage your todos and skills, spawn teams of sessions, and hand heavy work to external AI agents — **it gets to know you, and changing sessions no longer loses context**.
+
+Docs: [Detailed feature reference (中文)](README-详细说明.md) · [Memory sync (中文)](docs/记忆同步.md) · [COI dispatch (中文)](docs/COI-调度.md) · [Windows development](docs/DEVELOPING-WINDOWS.md) · [Changelog](docs/CHANGELOG.md) · [中文](README.md)
 
 ---
 
-## Quick Start (Installation)
+## What this repository is
 
-The plugin ships its own `cordis.patch.yml` (declared via `dsh.bundle.patch`), so after `dsh plugin add` the **host side registers automatically — no manual configuration needed**. Using the web profile as an example, two steps:
+The upstream project [csyangwen/dsh-memory-evolve](https://github.com/csyangwen/dsh-memory-evolve) (800+ stars) stopped being maintained in late October 2026; issues have gone unanswered since November. This is the community-maintained fork, taken over by [@EscapeKarma](https://github.com/EscapeKarma). Progress so far:
+
+| Version | Highlights |
+| --- | --- |
+| **v0.2.0** | Fixed 4 blocking bugs (sync false positives, released package missing the worker, plugin failing to load on Cordis 4, tests writing into the real skill library) and 1 security defect (canvas private-key blocking silently ineffective on Windows); added CI; reproducible Windows development; build no longer depends on the original author's machine |
+| **v0.3.0** | Merged 8 community fixes accumulated after upstream went quiet (#102 #78 #79 #101 #70 #111 #60 #56+#89), original authorship preserved; plus 2 Windows fixes |
+
+- **Install from**: `github:EscapeKarma/dsh-memory-evolve`
+- **License**: MIT (the upstream copyright notice is kept, as MIT requires)
+- **Response expectations**: maintained in spare time — issues are read and answered, but no SLA
+- **Report issues**: <https://github.com/EscapeKarma/dsh-memory-evolve/issues> (please include DSH version, OS and reproduction steps; for plugin bugs also the version shown under *Settings → Memory Evolve → Version*)
+
+---
+
+## Quick start
+
+The package ships its own `cordis.patch.yml` (declared as `dsh.bundle.patch`), so `dsh plugin add` registers it automatically — no manual host configuration. Example with the `web` profile:
 
 ```sh
-# 1. Install into the profile (use link: for a local directory; git/registry
-#    package addresses also work)
+# 1. install (or search "dsh-memory-evolve" in the DSH plugin marketplace)
 dsh plugin --profile web add github:EscapeKarma/dsh-memory-evolve
 
-# 2. Restart dsh web — done
+# 2. fully quit DSH and start it again (the plugin loads at process start; reloading the page is not enough)
 ```
 
-> ⚠️ **Do NOT manually `insert` this plugin into `~/.dsh/profiles/web/cordis.patch.yml`**: the bundle patch already registers it; a duplicate insert with the same id crashes the loader with a duplicate loader entry id error. See the [detailed guide](README-详细说明.md) "标准安装" section for the full story.
+> ⚠️ **Do not manually `insert` this plugin into `~/.dsh/profiles/<name>/cordis.patch.yml`**: the bundle patch already registers it, and a duplicate entry id makes the loader fail with `duplicate loader entry id`. If you followed older instructions, just delete those lines.
 
-**Changing default config** (e.g. turning on per-turn memory review): override by id in the profile's `cordis.patch.yml` (top-level form, not an insert):
+**Changing defaults** (e.g. enabling in-turn memory review) — override by id (top-level, not `insert`):
 
 ```yaml
 - id: dsh-memory-evolve
   config:
-    reviewEnabled: true      # enable per-turn memory review (off by default)
+    reviewEnabled: true      # in-turn memory review (off by default)
     reviewInterval: 10       # review every 10 user turns
 ```
 
-**Temporarily disabling the plugin when it breaks DSH startup** (until the fix lands): add one line to the profile's `cordis.patch.yml` — no uninstall needed:
+The common way, though, is **runtime configuration**: *Settings → Memory Evolve → Configuration* in DSH. Changes apply immediately, no restart and no YAML editing.
+
+**Upgrading**:
+
+```sh
+dsh plugin --profile web add github:EscapeKarma/dsh-memory-evolve   # re-add pulls the latest
+# then fully quit DSH and start it again
+```
+
+To pin a version, append a commit or tag: `github:EscapeKarma/dsh-memory-evolve#v0.3.0`.
+
+**Temporarily disabling** a plugin that prevents DSH from starting (no uninstall needed):
 
 ```yaml
 - id: dsh-memory-evolve
   disabled: true
 ```
 
-**Upgrading from an older version**: if you previously inserted this plugin manually per older docs, delete that insert block from your profile patch (it now duplicates the bundle registration).
-
-To uninstall: `dsh plugin --profile web remove dsh-memory-evolve`. Everything is cleaned up automatically.
+**Uninstalling**: `dsh plugin --profile web remove dsh-memory-evolve`. Your data stays (`~/.dsh/memories`, `~/.agents/skills`); delete those files by hand only if you really want them gone.
 
 ---
 
-## Meet It (30 Seconds)
+## The 30-second tour
 
-After installing the plugin, open any session and you'll get a row of capability tabs: **Memory · Skills · Todos · Infinite Canvas · COI Scheduling · Session Broadcast · Prompts · Memory Sync · Model Settings · Bookmarks · Session Review · Web UI Settings**; the plugin overview, runtime config, and version updates live under DSH global **Settings → Memory Evolve**. On the AI side, you get a batch of tools: memory read/write, todos, skill management, local file search, session orchestration, session broadcast, external-AI dispatch, prompt injection, model query, and more.
+After installation a session gains a row of capability tabs: **Memory · Skills · Todos · Infinite Canvas · COI Dispatch · Broadcast · Prompts · Memory Sync · Models · Bookmarks · Session Review · Web UI Settings**. Plugin overview, runtime configuration and version updates live in DSH's global **Settings → Memory Evolve** (three sub-pages: Guide / Configuration / Version).
 
-In one sentence: **let the AI remember you, manage for you, do for you, and work together for you.**
+On the AI side you gain these tools:
 
-> Tip: Many plugin capabilities are off by default (so they don't bloat the AI's tool list). Turn them on in DSH "Settings → Memory Evolve → Config" when needed. Most scenarios below are combination plays — **turn on all the related features to assemble a complete pipeline**.
+| Tool | What it does | Default |
+| --- | --- | --- |
+| `memory` | read/write the five memory tracks, expand by id, archive | on |
+| `memory_suggest` | propose a write (queued for your confirmation) | on |
+| `dtodo` | four-track todos (life / work / project / daily) | on |
+| `skill_manage` | read and write the skill library | on |
+| `de_session` / `de_ws_*` | spawn sessions, dispatch work, collab rooms, file-lock declarations | with COI |
+| `de_coi*` | hand tasks to external AI agents (codex / kimi / grok / hermes) | off |
+| `de_broadcast` | inter-session messaging rooms, image attachments | off |
+| `de_canvas` | read/write the infinite canvas by node id | off |
+| `de_notify` / `de_channel_send` | notifications and direct pushes to IM (Feishu / QQ / WeChat / WeCom / web) | off |
+| `memory_evolve_search_local_files` | local document search (by name / content) | off |
 
----
-
-## Scenario 1: Let the AI Truly Remember You (Long-Term Memory)
-
-**Who it's for**: Everyone. This is the plugin's core and the foundation of everything else.
-
-An AI's conversation is "one-shot": switch projects, wait a few days, or open a new session, and it forgets who you are. The plugin's five-track memory gives the AI **cross-session long-term working memory**:
-
-- **User profile**: your preferences, company, communication habits — the AI sees these every turn;
-- **Global facts**: long-term knowledge about environments, tools, and conventions;
-- **Project key memory**: the current project's conventions, decisions, architecture, and gotchas, auto-injected into context; important conclusions can be tagged to apply **only on a specific git branch**;
-- **Project log / daily log**: progress is auto-recorded every turn, read on demand, history traceable.
-
-**How to use it**:
-
-1. Just talk to the AI normally — at the end of each turn it automatically writes progress into the project log and daily log;
-2. When you hit an important fact, say "**Note this down: this project's deployment port is 8080**" — it writes to project key memory, effective **only after you confirm** — the AI never writes to memory on its own;
-3. Days later, in another session, just ask "**Check memory: what architecture decision did we settle on last time?**" — it picks up seamlessly;
-4. Once memory grows, tell the AI to "**archive that XX memory entry**" — archived entries no longer get injected into context and can be restored anytime;
-5. **Emotion feedback log**: your evaluation of work results (e.g. "great!" or "why isn't it fixed yet?") is recorded into the daily and project logs (a `【feedback】` line with emotion, task category, and your exact words) — accumulated over time, you can ask the AI to "**analyze what I've been dissatisfied with recently**" and judge where it does well or poorly by task type.
-
-**What you get**: the AI goes from a conversation machine that "goes amnesiac every session" to a long-term partner that understands your whole workflow — continue development the next day and it directly cites yesterday's conclusions without you repeating them.
+In one sentence: **it remembers you, manages for you, works for you, and works together with itself.** Most capabilities are off by default (so they don't occupy the model's tool list); enable them under *Settings → Memory Evolve → Configuration*.
 
 ---
 
-## Scenario: Share Project Memory Across Computers (Memory Sync)
+## Scenario 1: AI that actually remembers you (long-term memory)
 
-**Who it's for**: People working on two computers (office + home) or collaborating with colleagues on the same project — who don't want to re-explain important conclusions on every machine.
+**Who**: everyone. This is the core of the plugin and the foundation of everything else.
 
-**How to use it** (see [Memory sync](docs/记忆同步.md) for details):
+Chat is one-shot: change project, wait a day, open a new session — it forgets who you are. Five memory tracks give it working memory across sessions:
 
-1. Under DSH "Settings → Memory Evolve → Config", turn on the **Memory Sync** module switch (this only makes the feature visible);
-2. In the project session's **Memory Sync** tab, turn on **Sync this project** — click "Start sync" (the remote memory defaults to your code repo, auto-stored in a dedicated branch without polluting code), then click "Sync and push" to finish the first push; **code is public (e.g. open-source on GitHub) but you want memory private**? Fill in a **shared memory repo** address — one repo holds all projects' memory (one dedicated branch per project), keeping memory fully isolated from code;
-3. On the other computer, clone the project and open it — **it auto-recognizes** (same repo URL = same project), pull it down and continue;
-4. Write memory as usual (real-time flush, zero latency), accumulate a batch and click "Sync" once; a conflict only appears when both machines edited the same entry — in the tab choose "take local / take remote / keep both".
+- **User profile**: preferences, company, communication style — visible every turn;
+- **Global facts**: environment, tools, conventions;
+- **Project key facts**: conventions, decisions, architecture, pitfalls — injected automatically, optionally **scoped to a git branch**;
+- **Project log / daily log**: per-turn progress, read on demand, traceable.
 
-**What you get**: project key memory, project logs, archives, and project todos stay consistent across devices; with a shared memory repo filled in, **global memory (user profile / daily log / todos) also syncs across devices** (four independent track switches — sync only what you turn on) — switch computers without switching memory. **Projects with sync off are completely unaffected** (stay purely local).
+**How to use**:
 
----
+1. Just chat — at the end of each turn it writes progress into the project and daily logs;
+2. When something matters, say "**note this: the deployment port for this project is 8080**". It proposes a project key fact and **takes effect only after you confirm** — the AI never writes memory on its own;
+3. Days later, in another session, ask "**check memory — what architecture decision did we settle on?**";
+4. When memory grows, ask the AI to "**archive that entry**" — archived entries are no longer injected and can be restored at any time;
+5. Your reactions ("great", "still not fixed") are recorded as `【feedback】` lines in the daily and project logs; later ask "**analyse what I've been unhappy about recently**".
 
-## Scenario 2: Multi-Project Parallel Development, Nothing Falls Through (Todos + Project Log + Local Search)
+**Retrieval is ranked** (v0.3.0): asking "where did we put that deploy script" now returns results ordered by relevance, so a full-sentence question no longer necessarily returns nothing.
 
-**Who it's for**: Developers juggling multiple projects who keep getting stuck on "how was that earlier approach decided?"
-
-- **Four-track todos**: Life / Work / Project / Daily. The "Project" track is isolated by working directory — switching directories doesn't interfere. Say "**Remember: before Friday, deploy the second-level panel to the mobile-access instance**" and it becomes a project todo (with important/urgent flags and due date); at the end of each day the AI reminds you of due todos;
-- **Project log**: each project's progress is settled in isolation by directory, logs auto-tagged with `[git main]` branch markers for traceability;
-- **Local file search**: tell the AI "**search my machine for anything similar I've written before**" — finds docs by filename (extensible to all types); also content search: "**which doc mentions XX**" directly returns the matching file and snippets.
-
-**How to use it**:
-
-1. Start a new project and just start chatting — the project log auto-creates;
-2. Ideas that pop up, say "remember" to the AI — they enter the pending-confirmation queue — adopt or reject in "Todos", you call the shots;
-3. When you can't recall, ask "a doc mentioned XX before".
-
-**What you get**: juggling 3 projects at once stays tidy — each project's memory, todos, and doc clues go to their own directories, recoverable with one question.
+**Saving injection cost** (v0.3.0): set `keyProgressiveDisclosure` / `memoryProgressiveDisclosure` / `userProgressiveDisclosure` to `on` and the injected form becomes `[date] [short-id] summary`, with full text fetched on demand via `expand` — measured ~**79%** fewer injected characters for the memory/user tracks.
 
 ---
 
-## Scenario 3: One Person Directing a Team of AIs (Internal Team)
+## Scenario 2: Shared project memory across machines (memory sync)
 
-**Who it's for**: People who want to use AI as a "team" — one main session directing designer, frontend, backend, and test sub-sessions.
+**Who**: home + office machines, or colleagues sharing conclusions for one project.
 
-**How to use it**:
+**How** (details in [docs/记忆同步.md](docs/记忆同步.md)):
 
-1. **Assemble the team**: tell the main session's AI "**Create 4 sessions: designer handles site visuals, frontend handles pages, backend handles APIs, test handles acceptance, and pull them into one collaboration room**" — it immediately creates 4 standard sessions (appearing in the left list, ready to take over anytime), automatically inheriting your model and working directory; you can specify an **Agent preset** when creating (e.g. "create the frontend session in code mode") to decide that session's tool surface and personality;
-2. **Collaborative communication**: once the room is built, **who changed what and who finished is visible to all**; member status changes (generating / idle) auto-trigger a "room activity" notification; **room messages can carry images** — paste a screenshot into the group, and the receiving AI gets the image file path via `read`, can read the image, and can forward it to an IM channel;
-3. **Dispatch and nudge**: ask the AI "**who's working now and who's idle?**" and it checks each session's status; for an idle session say "**tell frontend to send the results over**" and the AI auto-wakes it and dispatches work — no batch auto-waking, everything is consciously directed by you (or your main session);
-4. **Conflict prevention**: when multiple sessions edit code in parallel on the same project, tell the AI before starting "**declare which files you'll modify**" — others (and their AIs) can see "who's changing what"; on a real collision the writer gets a conflict warning, plus "workspace activity" notifications (separately pushed on parallel start/end and member changes) keep you informed who's running and doing what;
-5. **Result handoff**: each member posts results back to the room, and you aggregate and confirm.
+1. Enable the **Memory Sync** module under *Settings → Memory Evolve → Configuration* (this only makes the UI visible);
+2. In a project session open the **Memory Sync** tab and enable *this project*, then hit "start sync" — by default memory uses your code repository and lives on a dedicated branch, so code stays clean. Public repo but private memory? Point it at a **shared memory repository**: one repository holds every project's memory, one branch each;
+3. On the second machine, clone and open — it recognises the project automatically (same repository URL) and pulls the memory;
+4. Write memory as usual (immediate, zero latency) and sync in batches; conflicts only appear when both machines changed the same entry — choose *local / remote / both*.
 
-**Sustained operation (key)**: the main session keeps running itself, so it can **wake any resting (idle) session at any time to continue work** — nudge, collect results, dispatch the next round; even away from the computer, the team pushes forward to results. The only prerequisite is **the DSH process hosting the main session keeps running**; if the main session goes idle or DSH is closed, the wake chain stops — you need to come back and send a message for the team to restart.
+**Result**: project key facts, project logs, archives and project todos are consistent across machines; with a shared memory repository the global tracks follow too. **Projects without sync stay purely local.**
 
-**What you get**: one person's dev output becomes a small team's throughput. Task handoff, waking, and conflict warnings are automated end-to-end, with room messages traceable.
-
----
-
-## Scenario 4: Hand Heavy Work to External AI Agents (External Help)
-
-**Who it's for**: Users who need to hand big tasks (visual redesign, code review, full feature development) to dedicated AI agents (Kimi / Codex / Grok / Hermes) — without being blocked, and without missing results.
-
-**How to use it**:
-
-1. Tell the AI "**dispatch this task to grok: mobile adaptation refactor**" — it runs async in the background, returns a task ID immediately, **doesn't block the current session**, and you can keep chatting;
-2. Ask anytime "**how's the task going?**" or watch the real-time log stream in "COI Scheduling";
-3. When dispatching, the AI can choose to carry your project memory along — the external agent also "understands project conventions";
-4. **Dispatch with images**: tell the AI "**send this screenshot to grok for analysis**" — attachments support local path / remote URL / current-session image (the image you pasted in the input box); codex/kimi/hermes can actually see images (grok reads via prompt; zcode is text-only and rejects explicitly);
-5. On completion the result summary **auto-writes into the project log and daily log** — dispatched work automatically becomes your memory asset.
-
-**What you get**: AI dispatches work to AI, and you only handle confirmation and acceptance. Visual redesign, deep code review, batch refactoring — these "heavy jobs" can all be offloaded, keeping the main session light.
+> Sync uses your local `git`. On Windows, if the first push reports "remote branch was deleted", upgrade to v0.2.0+ (Chinese-locale false positive fixed).
 
 ---
 
-## Scenario 5: Inside + Outside Working Together — One Team, Two Kinds of Troops
+## Scenario 3: Many projects in parallel, nothing forgotten (todos + local search)
 
-**Who it's for**: People whose tasks are too big for one side alone. This is the full form of the plugin's collaboration: **internal sessions handle work needing context and back-and-forth polishing; external agents handle one-shot heavy work; memory, rooms, and prompts chain them into a pipeline.**
-
-A complete real flow (product visual redesign):
-
-1. **Divide work**: the main session spawns frontend and test internal sessions and pulls them into a room; meanwhile it dispatches "full-site visual redesign" to the external agent Kimi;
-2. **External leads**: Kimi runs the redesign in the background (occupying no session); meanwhile the internal frontend session builds the data layer and page structure without idling;
-3. **Handoff**: Kimi finishes, and the summary auto-settles into project memory — the main session posts the design conclusion to the room, and the frontend session **reads memory to get the design spec** and starts integrating;
-4. **Escalation**: a weird styling bug appears during integration and the frontend session gets stuck — the main session dispatches the bug to Grok for deep digging, the conclusion returns to the room, and the frontend session fixes it accordingly;
-5. **Acceptance**: the test session runs the acceptance flow, posts results to the room, and you confirm at the end.
-
-Four collaboration joints, freely combinable:
-
-- **Task relay**: external agents' output (summaries/conclusions) auto-enters memory → internal sessions relay and execute — **external does the heavy work, internal does integration and polish**;
-- **Escalation**: internal sessions hit a hard problem → the main session dispatches it to an external agent to dig deep → the conclusion returns to the room — **internal iterates fast, external does slow careful work**;
-- **Unified standards**: when dispatching to external agents, inject your accumulated prompts (like "code review checklist" or "PRD spec") — **external agents work by your process, not by luck**;
-- **Status sync**: who's running and who's done is visible anytime via room + workspace activity + notifications — **you don't have to be a human dispatcher**.
-
-**What you get**: a complete pipeline of "external leads → internal integrates → test accepts → you confirm." Big tasks are no longer carried by one person (or one AI), but split between an internal and external team.
+- **Four todo tracks**: life / work / project / daily; the project track is isolated per working directory. Say "**remember: deploy the secondary panel to the mobile instance by Friday**" and it becomes a project todo with importance/urgency and a due date; at the end of the day the AI reminds you;
+- **Project log**: isolated per directory, tagged `[git main]`;
+- **Local document search**: "**have I written something like this before?**" (by name) or "**which document mentions X?**" (by content). On Windows it tries `es` → `rg` → pure Node, so it works even when none of them is installed.
 
 ---
 
-## Scenario 6: The AI's Self-Discipline — Prompt Injection
+## Scenario 4: One person commanding a team of AIs (internal team)
 
-**Who it's for**: People who want to settle "good working methods" and make every AI (including external agents) work by the same process.
+1. **Spawn the team**: "create 4 sessions — design owns visuals, frontend owns pages, backend owns the API, QA owns acceptance — and put them in one room". They inherit your model and working directory; agent presets are supported;
+2. **Communicate**: everyone sees who changed what and who finished; room messages **may contain images**;
+3. **Dispatch and nudge**: "who is working now?" → status; "ask frontend to send the result" → it wakes that session and hands it the task (never batch auto-wakes — you stay in charge);
+4. **Avoid conflicts**: "declare which files you're about to change" — others see it, and a real collision produces a warning;
+5. **Collect**: members post results to the room; you confirm.
 
-The prompt library is an **instruction-paradigm asset library**: code review, debugging, PRD, test strategy… solidify commonly used working methods into prompts (categorizable, searchable, enable/disable-able).
-
-**How to use it**:
-
-1. **The AI picks and injects on its own**: when the AI thinks a certain process fits the current task, it checks the prompt library itself, picks the right prompt, and injects it into itself — "proceed by the code review checklist"; next turn it follows automatically, **without interrupting the current reply**; it can also "inject immediately" to take effect this turn;
-2. **You inject with one click**: in "Prompt Injection", select one and click "Inject once / Continuously inject / Inject immediately" — continuous injection means "remind the AI to work by this discipline every turn";
-3. **Temporary injection**: without creating a prompt, directly type a requirement to inject — it's auto-saved into the library for reuse;
-4. **Dispatch with discipline**: when dispatching to sub-sessions or external agents, have the AI carry the corresponding prompt along — **the whole team uses the same standard**.
-
-**What you get**: good methods no longer live only in your head or a single conversation — they become a reusable "team playbook" the AI follows on its own, while you only maintain the playbook's quality.
+**The engine**: the main session must stay alive in a running DSH process. If it goes idle or DSH is closed, the wake-up chain stops — send one message and the team moves again.
 
 ---
 
-## Scenario 7: Sessions Too Long, Too Expensive, Easy to Blur — Bookmarks and Branches
+## Scenario 5: Heavy work handed to external agents (reinforcements)
 
-**Who it's for**: Heavy users sensitive to context cost whose single sessions routinely run hundreds of turns.
+1. Say "**dispatch this to grok: mobile adaptation**" — it runs in the background, returns a task id immediately and **does not block the session**;
+2. Ask "**how is the task going**", or watch the live log stream in the **COI Dispatch** tab;
+3. Dispatch can carry project memory, so the external agent knows your conventions;
+4. **Attachments work**: local paths, remote URLs or images from the current session;
+5. When it finishes, the summary is **written into the project and daily logs** — outsourced work becomes memory.
 
-- **Session bookmarks**: star (☆) any turn, "Bookmarks" lists all bookmarks (name / turn / time / summary, searchable), **one click jumps back to any turn** — star it when you discover "this conclusion matters";
-- **Branch from any turn**: officially you can only branch from the last turn; this plugin **takes over the branch entry for any middle turn** — click "Branch" in the bookmark list (or click the official branch button, and a middle turn pops a confirmation), creating a new session through the official branch channel and entering the official branch genealogy;
-- **Context usage reminder**: the input-box ring shows context usage in real time — ≥30% turns yellow, ≥40% turns red, reminding you it's time to bookmark, branch, or open a new session.
-
-**How to use it**:
-
-1. In exploratory sessions, star key turns and name the bookmark (e.g. "Plan A review conclusion");
-2. To fork a new line from a middle decision point, click "Branch" in the bookmark list;
-3. When the ring turns red, bookmark the current session and open a new session to continue.
-
-**What you get**: context is no longer a rope you can only scroll from start to end, but a **timeline with anchors, branches, and jumps** — every turn's exploration can be precisely reused, and you no longer have to abandon good middle conclusions just because "the session got too long."
+Requires the corresponding CLI (`codex` / `kimi` / `grok` / `hermes`) installed locally and COI dispatch enabled. See [docs/COI-调度.md](docs/COI-调度.md).
 
 ---
 
-## Scenario 8: Use It Away from the Computer (Mobile Access + Session Filtering + Notifications)
+## Scenario 6: Inside + outside — one team, two kinds of soldiers
 
-**Who it's for**: People who want to keep collaborating with AI away from the computer, or who open too many sessions to watch.
+The full shape: internal sessions do work that needs iteration and context, external agents do one-shot heavy lifting, and memory + rooms + prompts stitch them into a pipeline.
 
-- **Mobile browser access**: the DSH UI is adapted for phones — conversation area / message bubbles full-width, input bar "⋯" pulls up the collapsed toolbar and model selection; mobile operation matches desktop;
-- **Session list filtering**: the left list can show only "active sessions", one screen to see who's working — desktop too;
-- **Channel notification (de_notify)**: tell the AI "notify me via Feishu when the task finishes" — important results pushed to Feishu/QQ/WeChat/WeCom, known immediately at the computer or on the phone (notifications carry a "this is a notification" tag and can attach images/files);
-- **Web in-site notification (de_notify channels=web)**: tell the AI "send me an in-site notification" — it lands directly on the **bell at the top-right of the web page** — unread count badge + popup list, showing "which session sent what", click the subject to jump to that session, long content click "view details" for a large popup; the bell is freely draggable and snaps to the left/right screen edge (position remembered). Sending to web and to Feishu etc. is the same sentence, just a different destination (channels `web`, or `all` to send both);
-- **Channel direct-send (de_channel_send)**: the AI proactively sends text/images/files to your IM channel anytime (no notification tag) — the "send me the generated image/document" scenario; all four channels (Feishu/QQ/WeChat/WeCom) supported, attachment sources can be local path / remote URL / inline base64 / **current-session image** (sessionImage=true directly forwards the image you pasted/dragged into the DSH input box; attachmentId explicitly references, pair with de_session_images to first check which images this session has, requires DSH 260810+ snapshot).
+1. **Split**: the main session spawns frontend and QA into a room, and dispatches "full visual redesign" to Kimi;
+2. **External lead**: Kimi redesigns in the background; the frontend session builds data layer and page structure meanwhile;
+3. **Relay**: Kimi finishes, the summary lands in project memory → main session posts the conclusion to the room → frontend reads memory for the spec and integrates;
+4. **Escalation**: frontend is stuck on a weird styling bug → main dispatches Grok to dig → conclusion back to the room → frontend fixes it;
+5. **Acceptance**: QA runs the acceptance pass, posts results, you confirm.
 
-**What you get**: heavy work keeps dispatching and progress keeps watched, without you being chained to the computer — back at the desk, take over the session from the left list and continue.
-
----
-
-## Scenario 9: Give Every Session an Invisible Reviewer (Session Review)
-
-**Who it's for**: People who want a "second pair of eyes" watching the AI's work without babysitting every line — especially when the project has set discipline (e.g. "state which directory you're in before replying") but you keep finding the AI forgets mid-conversation.
-
-**What it can do**:
-
-- **Independent reviewer**: attach an independent review session to each session; it **only observes the conversation you see on screen** (user words + the Agent's reply body), seeing no thinking process, tool-call params, or other internals — like a colleague sitting beside you who only listens and never touches the keyboard;
-- **Real-time review every turn**: as the conversation advances each turn, the reviewer reviews once based on **full context** — it's a persistent session that remembers all history like a normal long LLM conversation and **never truncates**, never "forgetting what was said earlier";
-- **Real-time steer when needed**: when the reviewer finds something worth saying, it injects into the current session as **a user instruction** — the Agent treats it as your words and executes directly (decided 2026-08-13: testing showed a "non-user instruction" tag makes the Agent question the source and lowers execution, so disguising as a user instruction works best); in the GUI conversation flow these messages show as a **collapsed `[severity]` prefix** line, so you can tell at a glance which words were actually the reviewer's;
-- **Four severity levels**: `info` (record only, not injected into the main session by default, injection configurable) / `nit` (small suggestion) / `concern` (worth handling) / `blocker` (must handle immediately) — not everything interrupts, only what should be said;
-- **New review session**: one click in the panel clears the reviewer's context and memory to start over — the new session's first instruction is where you tell it the background, and you control the context length;
-- **Ask the reviewer directly**: ask anytime in the panel and it answers immediately (answers show only in the review panel, not injected into the main session flow) — like a listening colleague you can ask anytime;
-- **Four-level constraints**: system prompt (global default, view full text / modify / one-click restore) / **project constraint** (shared in this workspace) / **session constraint** (kept for this session) / **this review-session constraint** (cleared with "new review session") — four layers spliced and injected, the more local wins on conflict;
-- **Traceable records**: review records persist as JSONL, traceable in the panel's "Records".
-
-**How to use it**:
-
-1. Under DSH "Settings → Memory Evolve → Config", turn on **Session Review** (`advisorEnabled`, off by default); the review model inherits the current session model by default, or configure `advisorProvider`/`advisorModel` separately;
-2. The session page shows a "Session Review" floating window — open the panel to see the reviewer's real-time review stream and context usage;
-3. In the "Constraints" tab, set rules for the reviewer (e.g. project constraint: "state which directory you're in before each reply"), saved and effective immediately;
-4. Click "**New review session**" to restart the reviewer from scratch; click "**Ask**" to ask it directly;
-5. Agent side: review reminders appear in the conversation flow as collapsed `[severity]` lines — you can see what the reviewer said and whether the Agent followed.
-
-**What you get**: every AI session gains a continuously-on-duty "listening colleague" — it doesn't interrupt your rhythm, only reminds the Agent to correct course at key moments in your voice; project discipline and session constraints are watched for you, so rules aren't forgotten mid-conversation.
+Four composable joints: **relay** (external output becomes memory), **escalation** (internal fast, external deep), **shared standards** (inject your prompts when dispatching), **state sync** (room + workspace activity + notifications).
 
 ---
 
-## Scenario 10: Scattered Materials, One Canvas (Infinite Canvas)
+## Scenario 7: Turning good practice into discipline (prompt injection)
 
-**Who it's for**: People whose design drafts sit in Downloads, contracts in a doc library, reference images on the Desktop, recordings in a personal folder — every use requires opening Finder and digging layer by layer; and people who want the AI to "see" the materials at hand without dumping them all into the conversation context.
+Turn working methods into **prompts** (categorised, searchable, enable/disable-able): review checklists, debugging flows, PRD templates, test strategies…
 
-**What it can do**:
-
-- **Materials onto the board**: three entry points — **path onto board** (paste a local path), **note** (write directly in the canvas, content not persisted), **search onto board** (really searches local files, one click onto board); text files auto-read their content after going on board;
-- **See at a glance**: infinite pan/zoom canvas, cards freely placed and resized via bottom-right drag; images / audio-video / text preview directly in the canvas; Word/PDF etc. open via the system default app;
-- **Single board + view filtering**: physically one board, nodes carry ownership badges (🌐 global / 📁 project / 💬 session); the default session view shows "own session + current project + global", switch to "Project" to see all that project's sessions, switch to "Global" to see everything;
-- **Quick access**: copy node ID / title / path / reference string (`[canvas:id] title`), toss the reference string to the AI and it finds the material by id;
-- **AI both ways (pull-based)**: the AI uses the `de_canvas` tool to query the board by id, read material content, and place notes in the board's center area (tagged "placed by AI") — **canvas content is not injected into context**, queried on demand, saving tokens without interruption;
-- **Local path reference**: files stay in place, the board only records "where it points" — source changes are visible in real time, and deleting the source shows an invalid hint on the card;
-- **Security boundary**: the AI can only read nodes **already on the board** (no arbitrary path read API); sensitive directories (.ssh/.config etc.) refuse proxying even when put on the board.
-
-**How to use it**:
-
-1. Under DSH "Settings → Memory Evolve → Config", turn on **Infinite Canvas** (`canvasEnabled`, off by default);
-2. The session page shows a "Canvas" tab: path onto board / note / search onto board, cards freely arranged;
-3. Click a card's "Reference" to copy the reference string, tell the AI "go get XX from the canvas" — the AI uses `de_canvas` to query / read / place notes;
-4. Notes the AI places land in the board's center dashed area — drag them wherever you want.
-
-**What you get**: goodbye to "where was that file again" — materials gather on one board, and you and the AI work at the same table: you place, the AI takes; the AI places, you look.
+- **AI self-selects**: when a flow applies, it reads the library and injects it into itself for the next turn, without interrupting the reply;
+- **One-click injection**: pick one and choose *inject once / keep injecting / inject now*;
+- **Ad-hoc injection**: type a requirement without creating a library entry — it is stored and reusable next time;
+- **Dispatch with discipline**: when handing work to sub-sessions or external agents, bring the matching prompts along.
 
 ---
 
-## Other Capabilities (One-Line Index)
+## Scenario 8: Sessions that get long, expensive and fuzzy (bookmarks + branches + usage ring)
 
-- **Skill self-evolution**: repeatedly-hit methodologies auto-solidify into skills, so similar tasks execute by the process next time;
-- **Skill management**: browse / search / disable / edit all skills in the Memory tab, add custom skill directories (the original standalone dsh-skills-manager plugin is merged into this plugin; legacy users uninstall the old plugin first per the install doc);
-- **Infinite Canvas**: gather scattered files / text / images / audio-video onto one infinite canvas — local path reference, single board + view filtering (session / project / global), direct preview / copy / reference in-canvas; the AI can also read canvas material by id and place notes in the board's center area (de_canvas);
-- **Session search**: let the AI search other AI tools' (e.g. Codex) historical sessions on this machine — "did XX in Codex before", just ask;
-- **Model config**: the plugin maintains each model's enable status, thinking level, and notes, and marks **image-input support** (🖼 marker, clear at a glance when the AI picks a model);
-- **In-turn memory review**: every N turns, the AI proactively distills memory-worthy info for your confirmation — the memory library grows itself;
-- **Version detection & update**: in multi-device / multi-user deployments, the DSH "Settings → Memory Evolve → Version" page auto-detects remote release versions (git tag v0.x.y); when a new version is detected the Settings nav item shows a 🔴 red dot, and you decide whether to update (see "Release Versions" below);
-- **Session review (Advisor)**: attach an independent reviewer to each session — observes only on-screen conversation (no thinking / tool calls), real-time review every turn, real-time steer as user instruction when needed (info / nit / concern / blocker four levels; info records-only by default), persistent never-truncating session, supports new review session / direct ask / four-level constraints / traceable records. Off by default, see [Scenario 9](#scenario-9-give-every-session-an-invisible-reviewer-session-review).
-- **Web in-site notification**: channel notification (de_notify) adds a `web` channel — AI notifications land on the web page's top-right bell (unread badge + popup list + click subject to jump session + long-text large popup + drag-snap left/right), same notification semantics as Feishu etc. Off by default, enabled with the notification module (`notifyEnabled`) switch, see [Scenario 8](#scenario-8-use-it-away-from-the-computer-mobile-access--session-filtering--notifications).
-
-Full docs for each feature are in the corresponding tab's "Guide".
+- **Bookmarks**: star any turn; the list shows name/turn/time/summary, searchable, and **clicking jumps back to that turn**;
+- **Branch from any turn**: the official UI only branches from the last turn; this plugin takes over the entry point for **any middle turn**, still going through the official branch channel so it joins the official lineage;
+- **Context ring**: the input box shows live context usage — yellow at ≥30%, red at ≥40% — time to bookmark, branch, or start fresh.
 
 ---
 
-## Release Versions
+## Scenario 9: Working away from the desk (notifications + mobile)
 
-The plugin uses **git tag** as the release version identifier (two formats supported: **date-stamp `v<pure digits>`** like `v26081302` (recommended for daily releases), semantic `v1.2.3`): pushing the main branch in daily development triggers no update prompt — only a release tag is detected by each device.
+- **Channel notifications** (`de_notify`): "notify me on Feishu when the task is done" → Feishu / QQ / WeChat / WeCom, marked as a notification, with images or files;
+- **In-app notifications** (`de_notify channels=web`): land in the bell at the top right — unread badge, popover list, click to jump to the session, large detail dialog for long text, draggable/persistent position;
+- **Direct channel push** (`de_channel_send`): no notification marker, sends text/images/files straight to IM; attachments from local path, remote URL, base64 or **an image from the current session**;
+- **Mobile**: the DSH UI adapts to phones (full-width chat, collapsed toolbar behind "⋯");
+- **Session filter**: show only running sessions in the sidebar.
 
-**Release flow (developer)**:
+> Since v0.3.0, IM file attachments no longer arrive as `file.bin` — the name is inferred from the path or URL when omitted.
 
-```bash
-# 1. Commit and push main (the tag must sit on an already-pushed main commit)
-git push origin main
+---
 
-# 2. One-click with the release script: worktree/remote sync check → build → full test → annotated tag → push tag
-bash ~/shell/dsh-memory-evolve-release.sh v26081302 -m "Release notes: ……"
+## Scenario 10: An invisible reviewer for every session (session review)
+
+**Who**: people who want a second pair of eyes without reading every line.
+
+- **Independent reviewer** per session: it only sees what you see in the UI (your messages and the agent's reply text), not thinking or tool arguments;
+- **Per-turn review**: it is a continuous session, so its context is never truncated;
+- **Steering when needed**: when it has something worth saying it injects it **as a user instruction** into the current session, shown in the GUI as a collapsed line prefixed with `[severity]`;
+- **Four severities**: `info` (record only by default) / `nit` / `concern` / `blocker`;
+- **Four constraint layers**: system prompt / project / session / this review session — the more local wins;
+- **Ask it questions, reset it, inspect records.**
+
+Enable under *Settings → Memory Evolve → Configuration* (`advisorEnabled`, off by default). The reviewer model inherits the current model unless you set `advisorProvider` / `advisorModel`.
+
+---
+
+## Scenario 11: Scattered material, one canvas (infinite canvas)
+
+- **Three ways onto the board**: a local path, a sticky note (content never written to disk), or search-and-add;
+- **See it all**: infinite pan/zoom, freely placed and resized cards, inline preview for images/audio/video/text, Office/PDF via the system app;
+- **One board, filtered views**: every node carries a 🌐 global / 📁 project / 💬 session badge;
+- **AI in both directions (pull-based)**: `de_canvas` looks up, reads and adds notes by id — **canvas content is never injected**, so it costs no tokens until asked;
+- **Safety boundary**: the AI can only read nodes already on the board; sensitive directories (`.ssh`, `.git`, `node_modules`, system credential stores…) are refused even if placed there.
+
+> v0.2.0 fixed a security defect where this refusal logic was **completely ineffective on Windows** (POSIX separators never matched `C:\...`), exposing private keys. Use v0.2.0 or newer.
+
+---
+
+## Everything else, in one line each
+
+- **Skill self-evolution**: methodologies from repeated pitfalls become reusable skills;
+- **Skill manager**: browse/search/disable/edit skills, add custom skill directories; cross-device adoption now copies file by file (v0.3.0) so a failure leaves no half-written directory;
+- **Confirmation queue**: AI proposals for memory/skills/todos land here; adopt or reject updates only the affected row (v0.3.0) without refreshing everything or dropping your edits;
+- **Model settings**: per-model enabled state, reasoning effort, notes and image-input support;
+- **In-turn memory review**: every N turns the AI distils what is worth remembering and asks you;
+- **Version check**: git tag comparison (at most once per 24h), red dot, one-click update (git-clone installs only);
+- **Session search**: search your other local AI tools' (e.g. Codex) session history;
+- **Web UI settings**: mobile layout, wider bubbles, Mermaid rendering, context-usage ring.
+
+---
+
+## Configuration cheat sheet
+
+Runtime settings live under *Settings → Memory Evolve → Configuration*, or in the profile's `cordis.patch.yml`. The commonly changed ones:
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `reviewEnabled` / `reviewInterval` | `false` / `5` | in-turn memory review and its interval |
+| `reviewMode` | `suggest` | `suggest` = proposals go to the queue; `auto` = write directly |
+| `keyProgressiveDisclosure` / `memoryProgressiveDisclosure` / `userProgressiveDisclosure` | `off` | `off` full text / `auto` full for small datasets / `on` always summaries |
+| `perTurnWriteGuard` / `writeGuardThreshold` | `false` / `2` | write watchdog: remind after N turns without a log write |
+| `todoEnabled` | `true` | todo tool and tab |
+| `searchDocsEnabled` / `searchDocsMode` | `false` / unset | local document search; `all`/`filename`/`content`/`off` |
+| `searchDocsExts` | `['md']` | extensions searched |
+| `coiEnabled` | `false` | external AI dispatch |
+| `broadcastEnabled` | `false` | inter-session broadcast (rooms, `de_ws_*`) |
+| `canvasEnabled` | `false` | infinite canvas |
+| `advisorEnabled` | `false` | session review |
+| `notifyEnabled` | `false` | notifications (including in-app web) |
+| `skillReviewEnabled` | `false` | `true` = skills written directly without confirmation |
+| `skillDir` | `~/.agents/skills` | skill library directory |
+
+Full list: [README-详细说明.md](README-详细说明.md) (Chinese).
+
+---
+
+## FAQ
+
+**Installed but nothing happened?**
+The plugin loads at process start: **fully quit DSH and start it again** (closing the window to the tray does not count). Reloading the page never loads new code.
+
+**Sync keeps reporting "worker produced no output"?**
+Releases before v0.2.0 shipped without `scripts/` (`package.json` had no `files`). Upgrade; since v0.2.0 a missing file reports "incomplete plugin install, please reinstall" instead.
+
+**On Chinese Windows the first sync says the remote branch was deleted?**
+Fixed in v0.2.0: git subprocesses did not pin the locale, so Chinese error text never matched the English regex.
+
+**After a hot reload the whole page loses its styling?**
+Fixed in v0.3.0: runtime-injected `<style>` tags now carry `data-plugin` ownership. Refresh once after upgrading.
+
+**The canvas refuses to open a file as "sensitive"?**
+By design (`.ssh`, `.git`, `node_modules`, system credential stores…). Before v0.2.0 that rule did not actually work on Windows — please upgrade.
+
+**`git push` keeps failing?**
+Port 443 to github.com can be flaky for some networks (`Connection was reset` / `Failed to connect`). Retrying 2–4 times usually works; `api.github.com` is generally fine. Check `git log origin/main..HEAD` rather than a piped exit code.
+
+**The "check for updates" button does nothing?**
+It compares git tags, so it only works for **git-clone installs**; for `dsh plugin add` or marketplace installs, re-`add` to upgrade.
+
+**The plugin prevents DSH from starting?**
+Add `- id: dsh-memory-evolve` + `disabled: true` to the profile's `cordis.patch.yml`, start DSH, and file an issue.
+
+---
+
+## Development
+
+### Requirements
+
+- Node **≥ 22.18** (tests import `.ts` directly and rely on native type stripping); CI uses Node 24
+- `git` (tests create temporary repositories)
+- `esbuild` for building (`devDependencies`, `pnpm install` suffices)
+- The package itself has **zero runtime dependencies** (host side uses only Node built-ins, browser side only DSH-provided modules; Mermaid is vendored)
+
+```sh
+git clone https://github.com/EscapeKarma/dsh-memory-evolve.git
+cd dsh-memory-evolve
+pnpm install            # build only
 ```
 
-**Update on each device (user)**:
+### Tests
 
-- Auto-detect after entering the Web UI (auto-detect at most once per 24h, or click "Check for updates" to force; also a background check once on plugin startup);
-- When a new version is detected, the settings tab shows a 🔴 red dot; enter the "Version" page and click "Update to v26081302";
-- After updating you **must restart dsh web then refresh the browser** (only refreshing the page won't load the new code);
-- After updating the plugin is in detached HEAD (following the release tag): keep using the "Version" page's update button to upgrade, **do not `git pull` directly**;
-- To return to the dev track: `git checkout main && git pull --ff-only`.
+```sh
+pnpm test               # macOS / Linux
+pnpm test:win           # Windows (injects git identity and init.defaultBranch=main)
+```
 
-**Update safety mechanism**: only accepts tags in strict format (v<pure digits> or v1.2.3) that sit in origin/main history; verifies the local worktree is clean before updating; the update process has a cross-process lock and rollback on failure, never leaving you a half-updated state.
+On Windows plain `pnpm test` produces ~55 false failures (`Author identity unknown`, `src refspec main does not match any`) — use `test:win`. Current baseline: **976 tests / 975 pass / 0 fail / 1 skipped**. Windows-specific notes: [docs/DEVELOPING-WINDOWS.md](docs/DEVELOPING-WINDOWS.md).
+
+### Rebuild client artifacts after editing `src/client/`
+
+`lib/client.js` is a committed build artifact (DSH loads it directly):
+
+```sh
+pnpm build              # src/client/*.tsx -> lib/client.js
+git status              # commit lib/client.js if it changed
+```
+
+CI has a "build artifacts match sources" job that rebuilds on ubuntu and diffs; forgetting to rebuild turns it red. The client may only import host modules listed in `EXTERNALS` in `scripts/build.mjs`.
+
+### Layout
+
+```
+lib/             host-side hand-written ESM (entry lib/index.js, memory, sync, COI, canvas…)
+src/client/      browser-side TSX (59 files, bundled into lib/client.js by esbuild)
+tests/           72+ test files, ~976 cases
+skills/          5 built-in skills synced into the skill library
+scripts/         build.mjs, test-win.mjs, sync-worker.mjs (sync child process)
+docs/            CHANGELOG, memory sync, COI dispatch, rules, Windows development
+vendor/          mermaid.min.js
+```
+
+### Pull requests
+
+1. Branch from `main`, then run `pnpm test:win` (Windows) or `pnpm test`;
+2. Rebuild and commit `lib/client.js` when you touch `src/client/`;
+3. Write commit messages covering **symptom / root cause / fix / tests** (this repo's historical style);
+4. In the PR description include reproduction steps and test output; call out anything touching security boundaries (file access, command execution, auth);
+5. Merged community PRs keep their original authorship (`cherry-pick -x`).
+
+**Conventions**: Chinese comments preferred (as historically); no new runtime dependencies; tests must be deterministic (no hard-coded POSIX separators, macOS-only paths, or fixed `setTimeout` waits); new file-access code must go through the sensitive-path check.
+
+### Releasing
+
+Versions are **git tags** (`v1.2.3` semantic or `v26081302` date style) on already-pushed `main` commits:
+
+```sh
+# 1. update docs/CHANGELOG.md and docs/CHANGELOG.en.md plus package.json version
+# 2. commit and push
+git push origin main
+
+# 3. create and push the annotated tag (use --force-with-lease if it must move)
+git tag -a v0.4.0 -m "v0.4.0: …"
+git push origin refs/tags/v0.4.0
+
+# 4. publish a GitHub release
+gh release create v0.4.0 --title "v0.4.0 — …" --notes-file notes.md
+```
+
+Afterwards git-clone users see a red dot and can update in one click; `dsh plugin add` users re-add to upgrade.
 
 ---
 
-## Three Principles
+## Three design principles
 
-1. **AI only proposes, you confirm**: AI-created memory, todos, and skills all enter the pending-confirmation queue first — every write that actually changes AI behavior is yours to decide;
-2. **Don't reinvent the wheel**: don't touch capabilities the official product already has, only build what the official product hasn't done and genuinely solves a pain point;
-3. **Inside vs outside, complementary collaboration**: internal sessions handle context-heavy work, external agents handle one-shot heavy work; memory, rooms, and prompts chain them into a pipeline.
+1. **The AI proposes, you decide**: self-created memories, todos and skills go through a confirmation queue — anything that would change the AI's behaviour needs your approval;
+2. **Don't reinvent wheels**: leave official capabilities alone and only build what DSH lacks and users actually need;
+3. **Inside and outside are complementary**: internal sessions handle context-heavy work, external agents handle one-shot heavy lifting; memory, rooms and prompts tie them together.
+
+---
+
+## License and credits
+
+MIT. Upstream copyright `Copyright (c) 2026 dsh-external` (see [LICENSE](LICENSE)); this fork adds `Copyright (c) 2026 EscapeKarma and contributors`, keeping the original notice as MIT requires.
+
+Thanks to the original author [@csyangwen](https://github.com/csyangwen) for building this plugin, and to the contributors whose fixes made v0.3.0 possible:
+
+[@idealistichacker](https://github.com/idealistichacker) (#104 hide background console windows), [@wangyuanchuan2022](https://github.com/wangyuanchuan2022) (#77 spawn seed), [@534056668](https://github.com/534056668) (#98 Session.events compatibility), [@Kiva007](https://github.com/Kiva007) (#91 desktop same-origin + timeout), [@qiyeren](https://github.com/qiyeren) (#100 wide-chat anchors), [@NameLess](https://github.com/NameLess) (#102 attachment name inference), [@师忠港](https://github.com/shizhonggang) (#60 cross-device copy), [@dsh-external](https://github.com/dsh-external) (#56 persistent styles).

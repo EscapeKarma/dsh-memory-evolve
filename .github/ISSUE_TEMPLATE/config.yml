@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 安全漏洞 / Security vulnerability
+    url: https://github.com/EscapeKarma/dsh-memory-evolve/security/advisories/new
+    about: 请勿开公开 issue，走私密漏洞报告
+  - name: 详细文档 / Documentation
+    url: https://github.com/EscapeKarma/dsh-memory-evolve/blob/main/docs/README.md
+    about: 安装、配置、同步、COI 调度、Windows 开发等说明都在这里
