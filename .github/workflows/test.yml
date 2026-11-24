@@ -1,0 +1,72 @@
+name: test
+
+# 门禁目标：任何一次推送 / PR 都必须让 895 个用例在 Windows 与 Linux 上都通过，
+# 并且「源码能重编出仓库里已提交的 lib/client.js」。后者防止只改 src/client/*.tsx
+# 却忘了重新构建产物——那种情况下用户装到的是旧界面，症状极难排查。
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit:
+    name: 单测 / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      # .only 会让其余用例静默跳过，绿色但没测到东西
+      - name: 禁止 .only
+        shell: bash
+        run: |
+          if grep -rnE '\b(describe|it|test)\.only\(' tests; then
+            echo "::error::tests 里出现 .only，会让 CI 静默跳过其它用例"
+            exit 1
+          fi
+
+      # 测试会在临时目录 git init/commit/push：gh runner 上没有 git 身份、
+      # 默认分支也不是 main。脚本用环境变量补上（不改全局配置）。
+      - name: 跑全量测试
+        run: node scripts/test-win.mjs
+
+  bundle:
+    name: 构建产物与源码一致
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '11'
+
+      - name: 安装构建依赖（esbuild）
+        run: pnpm install --frozen-lockfile
+
+      - name: 重新构建 lib/client.js
+        run: node scripts/build.mjs
+
+      - name: 产物必须与仓库里的版本逐字节一致
+        run: |
+          if ! git diff --quiet -- lib/client.js; then
+            echo "::error::lib/client.js 与源码不一致：改过 src/client/*.tsx 后请提交重新构建的产物"
+            git --no-pager diff --stat -- lib/client.js
+            exit 1
+          fi
