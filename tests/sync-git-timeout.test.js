@@ -210,6 +210,10 @@ test('runGit：超时终止真实进程树（子进程 + 孙进程一并清掉�
   ].join('\n')
   const child = spawn(process.execPath, ['-e', script], {
     detached: true,
+    // windowsHide 必填：从 GUI 进程（DSH 桌面版）跑测试时，detached 子进程会
+    // 新建一个控制台窗口；不隐藏的话桌面上会弹出一闪而过的黑窗，失败时还可能
+    // 留着一个报「0x800700e8（管道已关闭）」的空控制台。
+    windowsHide: true,
     stdio: ['ignore', 'pipe', 'pipe'],
   })
   let grandchildPid = null
