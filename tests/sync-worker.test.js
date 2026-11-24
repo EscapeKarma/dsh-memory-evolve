@@ -272,14 +272,15 @@ test('scripts/sync-worker.mjs 入口：stdout 单行 JSON + 退出码', { skip }
     await deviceBConnect({ dir: B.dir, remoteUrl: bare, remoteBranch: RB })
     writeFileSync(join(B.dir, 'KEY.md'), KEY(['[id:aaaa0000] [2026-08-10] 原始内容', '[id:eeee0000] [2026-08-10] B 的新条目']))
     const script = join(process.cwd(), 'scripts', 'sync-worker.mjs')
-    const r = spawnSync('node', [script, 'sync', B.dir, RB], { encoding: 'utf8', timeout: 60000 })
+    // 用 process.execPath 而非裸 'node'：Windows 上 node 不一定在 PATH（DSH 自带运行时不入 PATH）
+    const r = spawnSync(process.execPath, [script, 'sync', B.dir, RB], { encoding: 'utf8', timeout: 60000 })
     assert.equal(r.status, 0, `退出码应 0：${r.stderr}`)
     const out = JSON.parse(r.stdout.trim().split('\n').pop())
     assert.equal(out.ok, true)
     assert.equal(out.committed, true)
     assert.equal(typeof out.message, 'string')
     // status 子命令
-    const rs = spawnSync('node', [script, 'status', B.dir, RB], { encoding: 'utf8', timeout: 30000 })
+    const rs = spawnSync(process.execPath, [script, 'status', B.dir, RB], { encoding: 'utf8', timeout: 30000 })
     const sOut = JSON.parse(rs.stdout.trim())
     assert.equal(sOut.status.initialized, true)
   } finally {

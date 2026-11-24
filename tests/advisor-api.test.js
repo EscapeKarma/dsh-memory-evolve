@@ -8,6 +8,61 @@ import { installAdvisor } from '../lib/advisor/index.js'
 import { DEFAULT_ADVISOR_SYSTEM_PROMPT } from '../lib/advisor/prompt.js'
 import { validateRuntimePatch } from '../lib/index.js'
 
+/**
+ * 轮询等待条件成立。
+ *
+ * 评审链路是 fire-and-forget：固定 `setTimeout(20)` 在慢机器上等不到落盘，
+ * 断言就会随机失败（本文件曾在 CI/慢负载下 3 次挂 1 次）。等待真实条件
+ * 而不是猜时长，慢机器只是更慢，不会假红。
+ *
+ * @param {() => boolean} cond 条件
+ * @param {number} [timeoutMs] 超时（默认 2s，远大于正常耗时）
+ * @param {string} [label] 超时报错里的说明
+ */
+async function waitFor(cond, timeoutMs = 2000, label = '条件') {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    if (cond()) return
+    await new Promise((resolve) => setTimeout(resolve, 10))
+  }
+  throw new Error(`等待超时（${timeoutMs}ms）：${label}`)
+}
+
+/**
+ * 等评审链路安静：连续两次采样（间隔 25ms）无变化即视为到达稳定点，
+ * 且至少等 60ms 让排队的评审真正启动。
+ *
+ * 评审是 fire-and-forget，固定 `setTimeout(20)` 在慢机器上会早于落盘/投递，
+ * 断言随机失败（本文件曾在 CI 上 3 次挂 1 次）。这里只观察公开状态
+ * （记录数/模型调用数/事件数/steer/inject 数），不碰产品内部实现。
+ *
+ * @param {object} rig 测试装置
+ * @param {number} [timeoutMs] 上限（默认 3s）
+ */
+async function settle(rig, timeoutMs = 3000) {
+  const snapshot = () => {
+    const agent = rig.agents.get('session-1')
+    return [
+      rig.llm.calls.length,
+      rig.ctrl.queryRecords({ sessionId: 'session-1' }).records.length,
+      rig.ctrl.queryEvents('session-1', undefined, 0).events.length,
+      agent?.steers.length ?? 0,
+      agent?.injects.length ?? 0,
+    ].join(',')
+  }
+  const start = Date.now()
+  let last = ''
+  let stable = 0
+  while (Date.now() - start < timeoutMs) {
+    const current = snapshot()
+    stable = current === last ? stable + 1 : 0
+    if (stable >= 2 && Date.now() - start >= 60) return
+    last = current
+    await new Promise((resolve) => setTimeout(resolve, 25))
+  }
+  throw new Error(`评审链路在 ${timeoutMs}ms 内未安静`)
+}
+
 let seq = 0
 const nextSeq = () => seq++
 
@@ -213,8 +268,8 @@ function setupSession(rig, sessionId = 'session-1', userText = '帮我写个函�
 test('装配：启用后 agent/created 建运行时，turn/end 触发评审并 steer', async (t) => {
   const rig = rigFor(t)
   const { agent } = setupSession(rig)
-  // 等 drain
-  await new Promise((resolve) => setTimeout(resolve, 20))
+  // 等首轮评审真正落盘（轮询，不猜时长）
+  await waitFor(() => rig.ctrl.queryRecords({ sessionId: 'session-1' }).records.length >= 1, 2000, '首轮评审记录落盘')
   // 状态
   const status = rig.ctrl.status('session-1')
   assert.equal(status.effectiveEnabled, true)
@@ -253,12 +308,12 @@ test('门禁：只配 provider 缺 model → config-incomplete，绝不调用模
 test('指令：tell 入队 → 立即问答评审（Q4）→ answered 记录 + 会话流注入', async (t) => {
   const rig = rigFor(t)
   const { agent } = setupSession(rig)
-  await new Promise((resolve) => setTimeout(resolve, 20))
+  await settle(rig)
   // 问答回复用普通文本（问答模式不提取 JSON 帧，全文即回答）
   rig.llm.replies = ['好的，我会重点关注安全边界。']
   // 发指令 → 立即触发问答评审（不等待下个主回合）
   rig.ctrl.tell('session-1', '重点检查安全漏洞')
-  await new Promise((resolve) => setTimeout(resolve, 30))
+  await settle(rig)
   // 指令已被问答评审消费（reserve → answered → consume）
   assert.equal(rig.ctrl.instructionsOf('session-1').length, 0)
   // 最新记录：answered + note=回答全文 + delivery=null（不注入主会话）+ 带指令
@@ -284,7 +339,7 @@ test('指令：tell 入队 → 立即问答评审（Q4）→ answered 记录 + �
 test('API：status/events/records/instructions/toggle/config 全端点', async (t) => {
   const rig = rigFor(t)
   setupSession(rig)
-  await new Promise((resolve) => setTimeout(resolve, 20))
+  await settle(rig)
   const { server, base, request } = await makeServer(rig.ctx)
   t.after(() => server.close())
 
@@ -310,7 +365,7 @@ test('API：status/events/records/instructions/toggle/config 全端点', async (
   const ins = await request('POST', '/memory-evolve/api/advisor/instructions', { sessionId: 'session-1', text: '检查边界条件' })
   assert.equal(ins.status, 200)
   // 指令异步被问答评审消费（稍候）
-  await new Promise((resolve) => setTimeout(resolve, 30))
+  await settle(rig)
   const insGet = await request('GET', '/memory-evolve/api/advisor/instructions?sessionId=session-1')
   assert.equal(insGet.status, 200)
   assert.equal(insGet.json.pending.length, 0)
@@ -415,7 +470,7 @@ test('生命周期：agent/disposed 后 override 保留（刷新/重建不丢会
 test('Q1：info 级默认仅记录（不注入会话流）；开启 advisorInfoInject 后走 inject', async (t) => {
   const rig = rigFor(t)
   const { agent } = setupSession(rig)
-  await new Promise((resolve) => setTimeout(resolve, 20))
+  await waitFor(() => rig.ctrl.queryRecords({ sessionId: 'session-1' }).records.length >= 1, 2000, '首轮评审记录落盘')
   // 让下一轮评审产出 info 级建议
   rig.llm.replies = ['{"note":"可选小提示","severity":"info"}']
   const session = rig.agents.get('session-1').session
@@ -424,7 +479,7 @@ test('Q1：info 级默认仅记录（不注入会话流）；开启 advisorInfoI
   feed(rig, session, event('step/start', { turn: 2 }))
   feed(rig, session, event('assistant/message', { message: { id: 'm4', role: 'assistant', content: [{ type: 'text', text: '好的' }], source: { kind: 'model' } } }, 'append'))
   feed(rig, session, event('turn/end', { turn: 2, reason: { kind: 'completed' } }))
-  await new Promise((resolve) => setTimeout(resolve, 20))
+  await waitFor(() => rig.ctrl.queryRecords({ sessionId: 'session-1' }).records.length >= 2, 2000, '第二轮评审记录落盘')
   // 默认（infoInject=false）：记录落盘（outcome=recorded），会话流零打扰
   const records = rig.ctrl.queryRecords({ sessionId: 'session-1' })
   const latest = records.records[0]
@@ -440,7 +495,7 @@ test('Q1：info 级默认仅记录（不注入会话流）；开启 advisorInfoI
   feed(rig, session, event('step/start', { turn: 3 }))
   feed(rig, session, event('assistant/message', { message: { id: 'm6', role: 'assistant', content: [{ type: 'text', text: '好的' }], source: { kind: 'model' } } }, 'append'))
   feed(rig, session, event('turn/end', { turn: 3, reason: { kind: 'completed' } }))
-  await new Promise((resolve) => setTimeout(resolve, 20))
+  await settle(rig)
   const records2 = rig.ctrl.queryRecords({ sessionId: 'session-1' })
   assert.equal(records2.records[0].outcome, 'delivered')
   assert.equal(records2.records[0].delivery, 'inject')
@@ -469,7 +524,7 @@ test('Q5：config GET 返回默认提示词全文 + 新配置字段；PATCH 校�
 test('2026-08-12 用户反馈：角色分离——固定前缀不可被自定义提示词覆盖；注入消息带身份标记', async (t) => {
   const rig = rigFor(t, { config: { advisorSystemPrompt: '我是用户，帮我盯着agent输出' } })
   setupSession(rig)
-  await new Promise((resolve) => setTimeout(resolve, 20))
+  await settle(rig)
   // 评审调用 system = 固定角色前缀 + 用户自定义提示词
   const call = rig.llm.calls[0]
   assert.ok(call.system.startsWith('你是会话评审员 Advisor'))
@@ -487,14 +542,14 @@ test('2026-08-12 用户反馈：角色分离——固定前缀不可被自定义
   // 问答回答不注入主会话（advisor 对用户说的话只在面板）
   rig.llm.replies = ['好的，我知道了。']
   rig.ctrl.tell('session-1', '你好')
-  await new Promise((resolve) => setTimeout(resolve, 30))
+  await settle(rig)
   assert.equal(rig.agents.get('session-1').injects.length, 0)
 })
 
 test('2026-08-13 用户反馈：新建评审会话清空实时流（live ring），旧记录保留在记录 Tab', async (t) => {
   const rig = rigFor(t)
   const { agent } = setupSession(rig)
-  await new Promise((resolve) => setTimeout(resolve, 20))
+  await settle(rig)
   // 第一轮评审已产生 live 事件（started + finished）
   const before = rig.ctrl.queryEvents('session-1', undefined, 0)
   assert.ok(before.events.length >= 2)
@@ -517,7 +572,7 @@ test('2026-08-13 用户反馈：新建评审会话清空实时流（live ring）
   feed(rig, session, event('step/start', { turn: 2 }))
   feed(rig, session, event('assistant/message', { message: { id: 'm4', role: 'assistant', content: [{ type: 'text', text: '好的' }], source: { kind: 'model' } } }, 'append'))
   feed(rig, session, event('turn/end', { turn: 2, reason: { kind: 'completed' } }))
-  await new Promise((resolve) => setTimeout(resolve, 20))
+  await settle(rig)
   const after2 = rig.ctrl.queryEvents('session-1', undefined, 0)
   assert.ok(after2.events.length >= 2, 'reset 后的新评审事件重新出现在实时流')
   assert.ok(agent.steers.length >= 2)
@@ -526,7 +581,7 @@ test('2026-08-13 用户反馈：新建评审会话清空实时流（live ring）
 test('四层级约束：GET/PUT /scopes + 拼接注入 + 评审会话约束随 reset 清空', async (t) => {
   const rig = rigFor(t)
   setupSession(rig)
-  await new Promise((resolve) => setTimeout(resolve, 20))
+  await settle(rig)
   const { server, base, request } = await makeServer(rig.ctx)
   t.after(() => server.close())
 

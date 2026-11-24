@@ -125,6 +125,19 @@ function makeRig(configOverrides = {}, dataDir = mkdtempSync(join(tmpdir(), 'dsh
   return { ctx, agents, llm, listeners, ctrl: installed.ctrl, installed, dataDir, config }
 }
 
+/**
+ * 轮询等待评审落盘（不猜时长）：评审是 fire-and-forget，固定 sleep 在慢机器上
+ * 会早于落盘，断言随机失败。
+ */
+async function waitForRecords(rig, sessionId, min, timeoutMs = 2000) {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    if (rig.ctrl.queryRecords({ sessionId }).records.length >= min) return
+    await new Promise((resolve) => setTimeout(resolve, 10))
+  }
+  throw new Error(`等待超时（${timeoutMs}ms）：session ${sessionId} 的评审记录不足 ${min} 条`)
+}
+
 /** 注册 agent（触发 agent/created）+ 喂一轮完整会话事件。 */
 function sessionRound(rig, sessionId = 'session-1') {
   const { agent, session, events } = stubAgent(sessionId)
@@ -164,7 +177,7 @@ test('opt-in 手动开：override=true 后评审运行', async (t) => {
   const opened = rig.ctrl.setSessionOverride('session-1', true)
   assert.equal(opened.effectiveEnabled, true)
   sessionRound(rig)
-  await new Promise((resolve) => setTimeout(resolve, 20))
+  await waitForRecords(rig, 'session-1', 1)
   assert.ok(rig.llm.calls.length > 0) // 评审已调模型
   const records = rig.ctrl.queryRecords({ sessionId: 'session-1' })
   assert.equal(records.records.length, 1)
