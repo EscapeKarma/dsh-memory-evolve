@@ -7,7 +7,7 @@
 // 修法：运行配置（思考等级）改走 AgentOptions.reasoningEffort（dsh-agent-loop:1157/:1525）。
 //
 // 直跑：node tests/spawn-seed-contract.test.js
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 import assert from 'node:assert/strict'
@@ -17,16 +17,22 @@ const read = (relative) => readFileSync(join(here, '..', relative), 'utf8')
 
 const targets = [
   { label: 'dsh-memory-evolve/lib/session-orch.js', path: '../lib/session-orch.js' },
+  // dsh-agents 是 DSH 宿源码树里的兄弟检出；发行版 DSH（app.asar 打包）没有
+  // 源码树，这个 target 只在开发机的 SDK 检出里存在 → 不存在时跳过并说明，
+  // 不能让整个测试文件因为「找不到别人的源码」而红。
   { label: 'dsh-agents/lib/spawn.js', path: '../../dsh-agents/lib/spawn.js' },
 ]
 
 let passed = 0
 for (const target of targets) {
   let source
+  const local = join(here, '..', target.path.replace(/^\.\.\//, ''))
+  const external = join(here, target.path)
   try {
-    source = readFileSync(join(here, '..', target.path.replace(/^\.\.\//, '')), 'utf8')
+    source = readFileSync(existsSync(local) ? local : external, 'utf8')
   } catch {
-    source = readFileSync(join(here, target.path), 'utf8')
+    console.log(`  skip ${target.label}（源码树不存在：${external}）`)
+    continue
   }
 
   // ① 不得再把 request/header 写进 seed
