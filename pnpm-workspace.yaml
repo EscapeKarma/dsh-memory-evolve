@@ -1,0 +1,6 @@
+# pnpm 11 默认不允许第三方依赖跑构建脚本，遇到 esbuild 这种带 postinstall 的包
+# 会直接 ERR_PNPM_IGNORED_BUILDS + exit 1（CI 的安装步骤就会红）。
+# pnpm 11 用 allowBuilds 取代了 pnpm 10 的 onlyBuiltDependencies（旧键会被静默忽略），
+# 所以这里写成 map 形式显式放行 esbuild。
+allowBuilds:
+  esbuild: true

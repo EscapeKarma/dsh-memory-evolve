@@ -73,9 +73,16 @@ pnpm install          # 只装 devDependency（esbuild），本插件运行期�
 node scripts/build.mjs   # 或 npm run build，产物 lib/client.js
 ```
 
-> `pnpm install` 时若看到 `ERR_PNPM_IGNORED_BUILDS: esbuild@…`（pnpm 拦截依赖的
-> postinstall 脚本），属正常现象：esbuild 的平台二进制走 optionalDependencies，
-> 该 postinstall 只做自检，跳过它也照常构建（本机实测通过）。
+> pnpm 11 默认不许依赖跑构建脚本，遇到 esbuild 会直接 `ERR_PNPM_IGNORED_BUILDS`
+> 并以 1 退出（CI 等同失败）。仓库根的 `pnpm-workspace.yaml` 已经写了
+> `allowBuilds: { esbuild: true }` 放行——注意 pnpm 11 已用 `allowBuilds` 取代
+> pnpm 10 的 `onlyBuiltDependencies`，旧键会被静默忽略。
+>
+> 另外：esbuild 的 postinstall 用 `node install.js` 启动，所以 `pnpm install` 要求
+> `node` 在 PATH 上。只装了 DSH 自带运行时（不在 PATH）时会看到
+> `'node' is not recognized …`；把
+> `C:\Users\<你>\.dsh\dsh-runtimes\dsh-primary-runtime\dependencies\node\bin`
+> 加进 PATH 即可（或临时用 `pnpm install --ignore-scripts`，产物照样能构建）。
 
 esbuild 通过 `devDependencies` 固定为 **0.28.1**（与仓库里已提交的 `lib/client.js`
 对应版本；换版本可能导致产物字节变化，见下）。`scripts/build.mjs` 的解析顺序是
