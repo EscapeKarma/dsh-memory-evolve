@@ -20,7 +20,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { mock, test } from 'node:test'
 import assert from 'node:assert/strict'
-import { WsCoordStore, buildWsCoordBlock, wsToolDefinitions, installWsCoord } from '../lib/coi/ws-coord.js'
+import { WsCoordStore, buildWsCoordBlock, normPath, wsToolDefinitions, installWsCoord } from '../lib/coi/ws-coord.js'
 import { PLUGIN_SOURCE_KIND } from '../lib/coi/source.js'
 
 /** 独立临时目录（每个测试隔离）。 */
@@ -83,7 +83,8 @@ test('declare：登记文件/服务 + TTL + 重复声明刷新 + conflicts 检�
   const first = store.declare({ sessionId: 'A', cwd: '/w', targets: [{ path: 'a.js', note: '重构' }], ttlSeconds: 60 })
   assert.equal(first.declared.length, 1)
   assert.equal(first.conflicts.length, 0)
-  assert.equal(first.declared[0].target, '/w/a.js')
+  // 产品按 path.resolve 归一（Windows 上是 D:\w\a.js），断言不能写死 POSIX 路径
+  assert.equal(first.declared[0].target, normPath('a.js', '/w'))
   assert.equal(first.declared[0].kind, 'file')
   assert.equal(first.declared[0].source, 'declared')
   assert.ok(first.declared[0].expiresAt > Date.now())
@@ -171,7 +172,7 @@ test('clearObserved：只清自动登记锁，保留声明锁', async () => {
   store.clearObserved('A')
   const locks = store.list({ cwd: '/w' })
   assert.equal(locks.length, 1)
-  assert.equal(locks[0].target, '/w/a.js')
+  assert.equal(locks[0].target, normPath('a.js', '/w'))
   assert.equal(locks[0].source, 'declared')
   rmSync(dir, { recursive: true, force: true })
 })
