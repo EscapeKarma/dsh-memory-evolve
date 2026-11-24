@@ -4,7 +4,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
-import { apply, resolveConfig, renderSnapshot } from '../lib/index.js'
+import { apply as applyReal, resolveConfig, renderSnapshot } from '../lib/index.js'
 import { MemoryStore, projectHash } from '../lib/store.js'
 import { extractEntryId } from '../lib/sync/entryid.js'
 import { approveSuggestions } from '../lib/review.js'
@@ -13,6 +13,11 @@ import { TodoStore } from '../lib/todo.js'
 
 // This suite pins the legacy Chinese output contract; i18n.test.js covers English.
 import { setLocale } from '../lib/i18n.js'
+import { makeIsolatedApply } from './helpers/isolate-skills.js'
+
+// issue #105：真实 apply() 会把包内 5 个内置技能同步进用户的 ~/.agents/skills。
+// 测试里未显式指定 skillDir 的用例统一隔离到临时目录，避免污染真实技能库。
+const apply = makeIsolatedApply(applyReal)
 setLocale('zh')
 
 /** Whether `git` is available in this environment (skip git tests otherwise). */

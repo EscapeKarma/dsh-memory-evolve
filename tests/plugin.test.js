@@ -1,10 +1,15 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { homedir, tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { spawnSync } from 'node:child_process'
-import { apply, gitBranch, gitBranchList, inject, resolveConfig, renderSnapshot, resolveRevealTarget, toWindowsPath, RUNTIME_KEYS, validateRuntimePatch } from '../lib/index.js'
+import { apply as applyReal, gitBranch, gitBranchList, inject, resolveConfig, renderSnapshot, resolveRevealTarget, toWindowsPath, RUNTIME_KEYS, validateRuntimePatch } from '../lib/index.js'
+import { makeIsolatedApply } from './helpers/isolate-skills.js'
+
+// issue #105：真实 apply() 会把包内 5 个内置技能同步进用户的 ~/.agents/skills。
+// 测试里未显式指定 skillDir 的用例统一隔离到临时目录，避免污染真实技能库。
+const apply = makeIsolatedApply(applyReal)
 import { setLocale, getLocale } from '../lib/i18n.js'
 import { installCanvas } from '../lib/canvas.js'
 import { PLUGIN_SOURCE_KIND } from '../lib/coi/source.js'
@@ -179,6 +184,30 @@ test('installCanvas：de_canvas 注册 + dispose 注销（PR #8 回归护栏）'
   assert.ok(ctx.state.routes.some((r) => r.kind === 'prefix'), '安装后画板 HTTP API 必须已注册')
   installed.dispose()
   assert.ok(!names().includes('de_canvas'), 'dispose 后 de_canvas 必须已注销（开关关闭场景）')
+})
+
+test('issue #105：插件装配把内置技能同步隔离到临时目录，不写真实技能库', () => {
+  // 真实技能库快照（可能不存在：CI runner 上通常没有 ~/.agents/skills）
+  const realSkills = join(homedir(), '.agents', 'skills')
+  const before = existsSync(realSkills) ? readdirSync(realSkills).sort() : []
+  const dir = tempDir()
+  try {
+    const ctx = fakeCtx()
+    apply(ctx, { memoryDir: dir })
+    // 1) 隔离目录里必须真的装上了内置技能——证明同步路径确实跑过（不是被整体跳过）
+    const root = apply.isolatedSkillRoot
+    assert.ok(typeof root === 'string' && existsSync(root), '隔离技能库目录应已创建')
+    const installed = readdirSync(root, { withFileTypes: true })
+      .filter((e) => e.isDirectory())
+      .flatMap((e) => readdirSync(join(root, e.name)))
+    assert.ok(installed.includes('kimi-cli-calling'), '内置技能应同步进隔离目录')
+    assert.ok(installed.includes('memory-consolidate'), '内置技能应同步进隔离目录')
+    // 2) 真实技能库一个字节都不能变（这正是 issue #105 的根因）
+    const after = existsSync(realSkills) ? readdirSync(realSkills).sort() : []
+    assert.deepEqual(after, before, '跑测试绝不能改动真实技能库 ~/.agents/skills')
+  } finally {
+    clean(dir)
+  }
 })
 
 test('resolveConfig defaults and validation', () => {

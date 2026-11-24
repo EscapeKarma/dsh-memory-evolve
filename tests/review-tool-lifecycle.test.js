@@ -4,7 +4,12 @@ import { createServer } from 'node:http'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { apply } from '../lib/index.js'
+import { apply as applyReal } from '../lib/index.js'
+import { makeIsolatedApply } from './helpers/isolate-skills.js'
+
+// issue #105：真实 apply() 会把包内 5 个内置技能同步进用户的 ~/.agents/skills。
+// 测试里未显式指定 skillDir 的用例统一隔离到临时目录，避免污染真实技能库。
+const apply = makeIsolatedApply(applyReal)
 
 function tempDir() {
   return mkdtempSync(join(tmpdir(), 'dsh-memory-review-tools-test-'))
