@@ -94,7 +94,14 @@ test('branch and remote discovery preserve real Git results without opening cons
   git(root, ['remote', 'rename', 'origin', 'upstream'])
   const remote = resolveMainRemote(root)
   assert.equal(remote.name, 'upstream')
-  assert.equal(realpathSync(remote.root), realpathSync(root))
+  // 比较前必须两边都展开成同一形态：GitHub Actions 的 TMP 是 8.3 短路径
+  // （C:\Users\RUNNER~1\…），而 git 返回的是长路径（C:\Users\runneradmin\…）；
+  // 普通 realpathSync 不保证展开短名，realpathSync.native 走 GetFinalPathNameByHandle
+  // 一定给出长路径，再按 Windows 大小写不敏感比较。
+  assert.equal(
+    realpathSync.native(remote.root).toLowerCase(),
+    realpathSync.native(root).toLowerCase(),
+  )
   assert.ok(calls.some(({ args }) => args.join(' ') === 'remote'))
   assertHidden(calls)
 })
