@@ -9,7 +9,7 @@
 |---|---|---|
 | Node.js | **≥ 22.18**（`tests/client-compat.test.js` 直接 import `.ts`，依赖原生类型剥离） | DSH 桌面自带 v24.21.0 |
 | git | 任意较新版本（测试会在临时目录里 init / commit / push） | 2.56.0 |
-| pnpm / npm 安装依赖 | **不需要**，本仓库零运行期依赖 | — |
+| pnpm / npm 安装依赖 | 只跑测试时不需要（零运行期依赖）；要构建前端 bundle 时用它装 devDependency esbuild | pnpm 11.28.5（DSH 自带） |
 
 DSH 桌面版自带的 Node 位于（示例）：
 
@@ -66,16 +66,36 @@ git 配置。
 （用例写的是 `git push origin main`）。两者都不是插件 bug，`npm run test:win`
 已经替你处理。
 
-## 4. 构建前端 bundle 的已知限制
+## 4. 构建前端 bundle
 
-`npm run build` 目前**在非作者机器上跑不通**，因为：
+```bash
+pnpm install          # 只装 devDependency（esbuild），本插件运行期零依赖
+node scripts/build.mjs   # 或 npm run build，产物 lib/client.js
+```
 
-* `tsconfig.json` 的 `paths` 硬编码了作者 Mac 路径 `/Users/edgar/.dsh/source/current/**`；
-* `scripts/build.mjs` 从 `~/.dsh/source/current` 解析 esbuild（可用 `DSH_SOURCE` 覆盖）。
+> `pnpm install` 时若看到 `ERR_PNPM_IGNORED_BUILDS: esbuild@…`（pnpm 拦截依赖的
+> postinstall 脚本），属正常现象：esbuild 的平台二进制走 optionalDependencies，
+> 该 postinstall 只做自检，跳过它也照常构建（本机实测通过）。
 
-也就是说：改 `lib/*.js`（宿主侧手写 ESM）可以直接改、直接测；改 `src/client/*.tsx`
-需要先把 `tsconfig.json` 的路径与 esbuild 的来源修好，产物 `lib/client.js` 是提交进
-仓库的，必须和源码一起更新。相关修复见项目的维护计划「阶段③」。
+esbuild 通过 `devDependencies` 固定为 **0.28.1**（与仓库里已提交的 `lib/client.js`
+对应版本；换版本可能导致产物字节变化，见下）。`scripts/build.mjs` 的解析顺序是
+「本仓库 node_modules → `$DSH_SOURCE` 指向的 DSH 源码 checkout」，所以**不再需要**
+在本机放一份 DSH 源码。
+
+验证构建链是否健康的标准（也是本次修复的验收标准）：
+
+```bash
+cp lib/client.js /tmp/before.js
+node scripts/build.mjs
+cmp /tmp/before.js lib/client.js   # 必须完全一致，即「重编产物 = 仓库产物」
+```
+
+> 历史坑：`scripts/build.mjs` 以前只从 `~/.dsh/source/current` 找 esbuild，而
+> `tsconfig.json` 的 `paths` 又全是作者 Mac 路径 `/Users/edgar/.dsh/source/current/**`。
+> 结果是 fork 者 `npm run build` 必然报 `esbuild not found under ...`。
+> 现在 build 已可移植；`tsconfig.json` 的 `paths` 仍指向作者机器，只影响
+> `tsc --noEmit` 类型检查（本插件不用 tsc 出产物，esbuild 只剥离类型不做检查），
+> 如果你要在本地跑类型检查，把 `paths` 改成你自己的 DSH 源码路径即可。
 
 ## 5. 排障速查
 

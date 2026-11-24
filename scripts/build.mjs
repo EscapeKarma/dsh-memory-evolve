@@ -50,8 +50,17 @@ const EXTERNALS = [
   '@deepseek-ai/dsh-client-runtime/client',
 ]
 
-/** Locate the esbuild package inside a pnpm checkout (store or hoisted). */
+/**
+ * Locate the esbuild package.
+ *
+ * 解析顺序（2026-11 起）：本仓库自己的 node_modules → DSH 源码 checkout。
+ * 以前只认 checkout：等于要求每台机器上都得有一份 DSH 源码，fork 者必然卡在
+ * 「esbuild not found」。现在 esbuild 作为 devDependency 固定版本装进本仓库，
+ * 任何人 `pnpm install` / `npm install` 后即可构建。
+ */
 function resolveEsbuild(checkout) {
+  const local = join(ROOT, 'node_modules/esbuild/package.json')
+  if (existsSync(local)) return local
   const store = join(checkout, 'node_modules/.pnpm')
   if (existsSync(store)) {
     const entries = readdirSync(store).filter((name) => name.startsWith('esbuild@')).sort()
@@ -62,7 +71,10 @@ function resolveEsbuild(checkout) {
   }
   const hoisted = join(checkout, 'node_modules/esbuild/package.json')
   if (existsSync(hoisted)) return hoisted
-  throw new Error(`esbuild not found under ${checkout} (set DSH_SOURCE to the DSH checkout root)`)
+  throw new Error(
+    `esbuild not found: run \`pnpm install\` (or \`npm install\`) in ${ROOT}, ` +
+      `or set DSH_SOURCE to a DSH checkout that has esbuild installed`,
+  )
 }
 
 const require = createRequire(resolveEsbuild(CHECKOUT))
