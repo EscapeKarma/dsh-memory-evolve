@@ -420,6 +420,15 @@ test('skills-manager: custom skill dirs add/list/remove with SKILL.md scanning',
     const missing = await sm.request('POST', '/skills-manager/api/dirs', { path: join(skillsDir, 'nope') })
     assert.equal(missing.status, 400)
 
+    // 同一目录换一种写法也要能删：Windows 上大小写不敏感、正反斜杠等价，而 state
+    // 里存的是 realpath 结果（GH runner 的临时目录还是 RUNNER~1 这种 8.3 短名）。
+    // 严格字符串比较会把「同一目录的另一种拼法」误判成 404。
+    const altPath = process.platform === 'win32' ? skillsDir.replace(/\\/g, '/').toUpperCase() : skillsDir
+    const delAlt = await sm.request('DELETE', `/skills-manager/api/dirs?path=${encodeURIComponent(altPath)}`)
+    assert.equal(delAlt.status, 200, `换写法删除应成功：${altPath}`)
+    const reAdd = await sm.request('POST', '/skills-manager/api/dirs', { path: skillsDir })
+    assert.equal(reAdd.status, 200)
+
     const del = await sm.request('DELETE', `/skills-manager/api/dirs?path=${encodeURIComponent(realpathSync(skillsDir))}`)
     assert.equal(del.status, 200)
     const dirs3 = await sm.request('GET', '/skills-manager/api/dirs')
