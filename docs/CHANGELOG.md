@@ -4,7 +4,21 @@
 
 > [English](CHANGELOG.en.md)
 
-## 未发布
+## 2026-11-24 · v0.3.0（并入作者停更后积压的社区修复）
+
+### 变更
+
+本版把作者停更后积压的社区修复一次性并入（8 项，均保留原作者署名）：
+
+- **#102**（by [@NameLess](https://github.com/NameLess)）IM 发文件不再变成 `file.bin`：显式文件名 > 路径 basename > URL basename 逐级推断。
+- **#78** 待确认队列就地更新：采纳 / 归档 / 拒绝只删对应行，不再整块重拉、不再清空其他条目未提交的编辑。
+- **#79** § 分隔符约束从「读取时的提示」前移到「写入时刻」，写之前就看到规则。
+- **#101** 记忆检索三级语义 + `rank` 排序（新增 `lib/memory-rank.js`：中文二元组 TF-IDF + 关键词覆盖，整句提问不再必然返回空）。
+- **#70** memory / user 轨渐进式披露（`auto | off | on`，默认 off；开启后注入量实测 -78.9%）。
+- **#111** 插件设置移入 DSH 全局 Settings 页，不再单独占一个 Tab。
+- **#60**（by [@师忠港](https://github.com/shizhonggang)）跨设备采纳改逐文件拷贝，中途失败不留半成品目录（`EPERM` / `EXDEV` 的温床）。
+- **#56**（by [@dsh-external](https://github.com/dsh-external)）+ **#89** 样式注入补 `data-plugin` 归属、且不再随 dispose 移除——修「热重载后整页掉 CSS」。
+- 另含两处 Windows 修复：超时杀 git 子进程改用 `taskkill /T`（原先孙进程会变孤儿、定时同步越攒越多）、测试里的 detached 子进程不再弹出黑色控制台窗口。
 
 ### 修复
 
@@ -15,7 +29,6 @@
 
 - 新增 `tests/suggestion-report.test.js`（6 例）：钉住 `removedIndices` 的准确性——写失败的条目必须留在队列且不列入（少报会让界面「点了没反应」，多报会吞掉没写成功的条目）、重复建议算作已消费、reject 的跳号与不存在序号不虚报、归档失败保留、待办功能关闭时待办建议保留而记忆建议照常处理。`tests/api.test.js` 的 approve/reject 用例增加路由透传断言。
 - 新增 `tests/client-queue-inplace.test.js`（8 例）：与 `client-config-save.test.js` 同款的**源码 + 构建产物**静态契约——操作路径必须走 `applyRemovedIndices(report.removedIndices)` / `removePendingSkill(name)` 而不得回到整块重拉、不得再出现 `setEdits({})` 整体清空、队列状态必须来自模块级 store、草稿必须按 `suggestionKey(entry)` 读写（同时请求体仍按服务端原始序号对齐）、产物必须随源码重建。
-
 - 新增 `tests/style-ownership.test.js`（4 例）：静态护栏——每处 `document.createElement('style')` 之后必须紧跟 `claimStyleOwnership(tag)`、每处「已存在则跳过」的守卫必须抢回归属、归属键必须等于 `package.json` 的 `name`、构建产物 `lib/client.js` 里注入点与归属标记必须一一对应（防止改了源码忘记重建）。
 
 ## 2026-11-24 · v0.2.0（首个社区维护版本）

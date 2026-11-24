@@ -4,7 +4,21 @@ All version changes for this repository, in reverse chronological order.
 
 > [中文](CHANGELOG.md)
 
-## Unreleased
+## 2026-11-24 · v0.3.0 (community fixes merged after the original author went quiet)
+
+### Changed
+
+This release folds in the eight community fixes that piled up after the original author stopped updating (all original authorship preserved):
+
+- **#102** (by [@NameLess](https://github.com/NameLess)) IM file sends no longer land as `file.bin`: explicit filename > path basename > URL basename, in that order.
+- **#78** In-place pending-queue updates: approve / archive / reject now drop only the affected rows — no full refetch, and no wiping of unsaved edits on other entries.
+- **#79** The § separator rule moved from "a hint you read on load" to "shown at the moment you write".
+- **#101** Three-level memory retrieval plus `rank` ordering (new `lib/memory-rank.js`: Chinese bigram TF-IDF + keyword coverage, so a whole-sentence question no longer always comes back empty).
+- **#70** Progressive disclosure for the memory / user tracks (`auto | off | on`, default off; measured -78.9% injected characters when on).
+- **#111** Plugin settings moved into DSH's global Settings page instead of occupying their own tab.
+- **#60** (by [@师忠港](https://github.com/shizhonggang)) Cross-device adoption now copies file by file and leaves no half-written directory behind on failure (the `EPERM` / `EXDEV` breeding ground).
+- **#56** (by [@dsh-external](https://github.com/dsh-external)) + **#89** Runtime `<style>` injections declare `data-plugin` ownership and are no longer removed on dispose — fixes "the whole page loses its CSS after a hot reload".
+- Two Windows fixes ride along: timing out a git child process now uses `taskkill /T` (grandchildren used to survive as orphans that accumulated on every scheduled sync), and detached children in tests no longer flash a console window.
 
 ### Fixed
 
