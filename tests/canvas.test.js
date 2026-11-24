@@ -17,6 +17,7 @@ import {
   CANVAS_NOTE_MAX_BYTES,
   aiSlotPlacement,
   canvasToolDefinition,
+  findDeniedFragment,
   findNode,
   formatBytes,
   inferNodeTypeFromPath,
@@ -145,6 +146,35 @@ test('文件代理：不存在的敏感路径仍报敏感拒绝（不误导为�
   writeCanvas(config, { nodes: [node] }, 0)
   const res = resolveNodeFile(config, node.id)
   assert.match(res.error ?? '', /敏感/)
+})
+
+test('敏感路径判定：POSIX/Windows 写法、大小写、目录自身都要拦', () => {
+  // 回归：片段表按 POSIX 写法维护，Windows 路径是反斜杠。曾直接 includes()，
+  // 导致 Windows 上私钥/凭据目录拦截整体失效（2026-11-24 修复）。
+  const denied = [
+    '/home/u/.ssh/id_rsa',
+    'C:\\Users\\u\\.ssh\\id_rsa',
+    'c:\\users\\u\\.SSH\\id_rsa',
+    'C:/Users/u/.aws/credentials',
+    'D:\\proj\\.git\\config',
+    'D:\\proj\\node_modules\\x\\index.js',
+    'C:\\Users\\u\\.ssh',
+    'C:\\Users\\u\\AppData\\Roaming\\Microsoft\\Credentials\\ABC',
+    'D:\\conf\\.env',
+    'D:\\proj\\.env.local',
+    'D:\\certs\\server.pem',
+    'D:\\secrets\\master.key',
+  ]
+  for (const p of denied) assert.notEqual(findDeniedFragment(p), null, `应拒绝：${p}`)
+  // 不误伤：AppData 只拦系统凭据存储，Temp/普通应用配置照常可预览
+  const allowed = [
+    'C:\\Users\\u\\Documents\\note.md',
+    'C:\\Users\\u\\AppData\\Local\\Temp\\coi-1.log',
+    'C:\\Users\\u\\AppData\\Roaming\\Obsidian\\vault\\a.md',
+    '/home/u/notes/deepseek.md',
+    '/home/u/.github/workflows/ci.yml',
+  ]
+  for (const p of allowed) assert.equal(findDeniedFragment(p), null, `不应拒绝：${p}`)
 })
 
 test('文件代理：缺失普通路径友好报错', () => {
