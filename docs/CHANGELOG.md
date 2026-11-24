@@ -4,6 +4,31 @@
 
 > [English](CHANGELOG.en.md)
 
+## 2026-11-24 · v0.2.0（首个社区维护版本）
+
+### 变更
+
+- **本仓库改由社区维护**：原作者 `csyangwen` 自 2026-10-30 起停止更新，11 月起 issue 无人回复（积压 42 条）。本仓库是 `EscapeKarma` 接手的 fork，安装地址改为 `github:EscapeKarma/dsh-memory-evolve`；原作者版权行按 MIT 保留，`package.json` 补齐 author / contributors / repository / homepage / bugs / keywords，README 与客户端内文案同步更新。功能行为不变。
+- **首次接入 CI**：`.github/workflows/test.yml` 在 ubuntu-latest 与 windows-latest 上跑全量测试（Node 24，并禁止 `describe/it/test.only` 混入），另在 ubuntu 上校验 `pnpm install --frozen-lockfile && node scripts/build.mjs` 之后 `lib/client.js` 与源码一致——防止改了 `src/` 忘记重新构建（产物是提交进仓库的）。
+- **Windows 开发可重复**：新增 `scripts/test-win.mjs`（`pnpm test:win`），为测试注入 git 身份与 `init.defaultBranch=main`；没有这套环境变量的机器上会出现 55 个与本插件无关的假红（`Author identity unknown` / `src refspec main does not match any`）。配套新增 `docs/DEVELOPING-WINDOWS.md`。
+- **构建不再依赖原作者本机**：`scripts/build.mjs` 改为先找仓库内 `node_modules/esbuild`，找不到才回退 `DSH_SOURCE`；`esbuild@0.28.1` 进 devDependencies，并用 pnpm 11 的 `allowBuilds`（`pnpm-workspace.yaml`）放行它的构建脚本——pnpm 11 对被忽略的构建脚本直接以 1 退出，会让 CI 的构建 job 假失败。
+
+### 修复
+
+- **中文系统下首次同步被误判成「远端分支已删除」（#75，阻塞）**：`runGit()` 没有固定子进程 locale，`git fetch` 的报错文本随系统语言变成中文（`找不到远程引用`），而 `lib/sync/worker.js` 只按英文 `couldn't find remote ref` 判定，于是把「远端还没有这个分支」的首次推送误判为「分支被删」，同步直接失败。修复：`lib/sync/repo.js` 新增 `GIT_LOCALE_ENV = { LC_ALL: 'C', LANG: 'C' }` 并注入所有 git 子进程（网络命令仍额外带 `GIT_TERMINAL_PROMPT=0`）；判定正则同时补上中文兜底，且不误命中网络类错误。
+- **npm / 市场安装的插件，记忆同步永远报「worker 无输出」（#110，阻塞）**：worker 入口 `scripts/sync-worker.mjs` 在 `package.json` 里没有 `files` 声明，打包时被整目录丢掉，而 `lib/sync/index.js` 仍按相对路径去 spawn 它——`spawn` 失败、stdout 为空，用户只看到一句含糊的「worker 无输出」。修复：`package.json` 补 `files`（lib / scripts / skills / vendor / docs / cordis.patch.yml / 三个 README），并新增 `tests/package-manifest.test.js` 把「运行时资源必须随包发布」钉成测试；`spawnWorker()` 增加入口缺失守卫，直接返回结构化错误并给出「插件安装不完整，请重装插件」的明确提示，而不是让上层解析空输出。
+- **Cordis 4 下插件整体加载失败（#112，阻塞）**：`lib/advisor/index.js` 通过 `ctx.root` 拿 llm 服务，Cordis 4 起访问未声明的 `ctx` 属性直接抛错，导致 `apply()` 整个失败、插件的记忆 Tab 与全部工具一起消失。修复：llm 解析改为纯服务容器查询（`ctx.get('llm')` / `holder.get('llm')`，每次访问都 try/catch 兜底），并对 `root` 取不到的情况逐级回退；新增 `tests/advisor-cordis4.test.js`，用「未声明属性一律抛错」的严格 Proxy 复现 Cordis 4 行为。
+- **跑一次测试就往真实技能库里写 4~5 个内置技能（#105）**：`tests/plugin.test.js` 等 4 个文件里的插件装配都不传 `skillDir`，于是走到默认的 `~/.agents/skills`，把 kimi/codex/grok/hermes-cli-calling 与 memory-consolidate 写进用户的真实技能库（还会覆盖用户改动过的同名技能）。修复：新增 `tests/helpers/isolate-skills.js` 的 `makeIsolatedApply()`，未显式传 `skillDir` 时自动注入临时目录并在进程退出时清理；4 个测试文件统一走它，`tests/plugin.test.js` 增加守卫用例，断言真实技能库在装配前后逐条一致。
+- **画板打开敏感路径的拦截在 Windows 上整体失效（安全）**：`lib/canvas.js` 的拒绝清单是 `'/.ssh/' '/.gnupg/' '/.aws/' '/.config/' '/.git/' '/node_modules/'` 这类 POSIX 片段，判定用 `path.includes(denied)`；Windows 路径是 `C:\Users\…\.ssh\id_rsa`，永远匹配不上——私钥、`.git/config`、`node_modules` 都能被画板的文件代理读写、被「打开所在文件夹」直接打开。修复：新增 `findDeniedFragment()`，先把分隔符统一成 `/`、转小写、补尾斜杠再比对，并对 `.env` / `.pem` / `.key` / `.p12` 增加文件名兜底；顺带把过粗的 `'/AppData/'`（会把 `%LOCALAPPDATA%\Temp` 一起拦掉）收窄为 5 条系统凭据目录。
+- **Windows 上后台命令会闪出控制台窗口（#95，PR #104 by [@idealistichacker](https://github.com/idealistichacker)）**：记忆/分支查询、同步 Git、文档检索的子进程都没传 `windowsHide`，每次调用窗口一闪。合并上游 PR #104（保留原作者署名），补回归测试 `tests/background-processes.test.js`。
+- **自定义技能目录换一种写法删除会 404**：`lib/skills-manager.js` 用 `indexOf` 做严格字符串比较，同一目录写成正斜杠、全大写或 Windows 短路径（`RUNNER~1`）就删不掉。修复：新增 `samePath()`（统一分隔符 + Windows 忽略大小写）并先按原文、再按 `realpath` 比较，删除成功后返回实际移除的路径。
+
+### 测试
+
+- 全量 **913 例 / 911 通过 / 0 失败 / 2 跳过**（Windows，Node 24；两个 skip 一个是作者原有的，一个是「POSIX shebang 假 git」在 Windows 上无法模拟）。相比修复前的基线 832 通过，其中 15 个红是本仓库修复的跨平台缺陷（4 个画板敏感路径、4 个测试写死 POSIX 分隔符、3 个测试假设 macOS、2 个固定 `setTimeout` 等评审落盘导致的随机红、2 个 Windows 专属），其余是 git 身份/默认分支环境缺失造成的假红，已由 `scripts/test-win.mjs` 固化。
+- 新增测试文件：`tests/sync-git-locale.test.js`、`tests/package-manifest.test.js`、`tests/advisor-cordis4.test.js`、`tests/helpers/isolate-skills.js`、`tests/background-processes.test.js`。
+- 测试侧的两处健壮性修复：`tests/advisor-api.test.js` / `tests/advisor-optin.test.js` 把「等评审落盘」的固定 `setTimeout(20)` 换成轮询式 `settle()` / `waitForRecords()`（机器慢时随机红，产品侧 fire-and-forget 逻辑不动）；`tests/search-docs.test.js` 的 provider 断言改为「配置列表的子序列」，不再要求 CI runner 必装 `rg`。
+
 ## 2026-11-04
 
 ### 修复
