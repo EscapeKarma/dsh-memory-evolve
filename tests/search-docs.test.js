@@ -86,9 +86,16 @@ test('resolveProviders：auto 按平台排序并探测（本机 darwin → mdfin
     assert.ok(!names.includes('mdfind'), `本机没有 mdfind，不应出现在链里：${names.join(',')}`)
   }
   assert.ok(names.includes('walk'))
-  // 显式顺序
+  // 显式顺序：仍按配置里的先后排列，但探不到的二进制会被过滤掉（CI runner 通常没装
+  // rg，只有 walk 是纯 JS 实现、恒可用）。所以断言「是配置列表的子序列」而不是写死整份。
   const explicit = resolveProviders(baseConfig({ searchDocsProviders: ['rg', 'walk'] }), 'darwin')
-  assert.deepEqual(explicit.map((p) => p.name), ['rg', 'walk'])
+  const explicitNames = explicit.map((p) => p.name)
+  assert.ok(explicitNames.includes('walk'), `walk 恒可用，应在链里：${explicitNames.join(',')}`)
+  assert.deepEqual(
+    explicitNames,
+    ['rg', 'walk'].filter((name) => explicitNames.includes(name)),
+    `显式顺序应保持配置顺序：${explicitNames.join(',')}`,
+  )
   // 未知 provider 报错
   assert.throws(() => resolveProviders(baseConfig({ searchDocsProviders: ['nope'] }), 'darwin'))
 })
