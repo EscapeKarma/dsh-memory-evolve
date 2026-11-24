@@ -64,8 +64,11 @@ test('defaultRoots：始终包含主目录；darwin 包含 /Volumes', () => {
   const roots = defaultRoots('darwin')
   assert.ok(roots.length >= 1)
   assert.ok(roots.includes(homedir()))
-  // darwin 上真实 /Volumes 存在
-  assert.ok(existsSync('/Volumes'))
+  // /Volumes 是 macOS 专有路径：只在真 macOS 上断言（Windows/Linux 上探测不到）
+  if (process.platform === 'darwin') {
+    assert.ok(existsSync('/Volumes'))
+    assert.ok(roots.includes('/Volumes') || roots.some((r) => r.startsWith('/Volumes')))
+  }
   const winRoots = defaultRoots('win32')
   // PR #32（全盘搜索卡死修复）：win32 只收集「探测存在」的盘符——home 所在
   // 盘只扫 homedir（不含 C:\Windows 等系统目录），其余盘加盘符根。macOS
@@ -76,7 +79,12 @@ test('defaultRoots：始终包含主目录；darwin 包含 /Volumes', () => {
 test('resolveProviders：auto 按平台排序并探测（本机 darwin → mdfind 优先）', () => {
   const chain = resolveProviders(baseConfig(), 'darwin')
   const names = chain.map((p) => p.name)
-  assert.ok(names[0] === 'mdfind', `期望 mdfind 优先，实际 ${names.join(',')}`)
+  // mdfind 是 macOS 专有二进制：只有本机真能探测到才允许排第一，其它平台自动降级
+  if (process.platform === 'darwin') {
+    assert.ok(names[0] === 'mdfind', `期望 mdfind 优先，实际 ${names.join(',')}`)
+  } else {
+    assert.ok(!names.includes('mdfind'), `本机没有 mdfind，不应出现在链里：${names.join(',')}`)
+  }
   assert.ok(names.includes('walk'))
   // 显式顺序
   const explicit = resolveProviders(baseConfig({ searchDocsProviders: ['rg', 'walk'] }), 'darwin')
@@ -219,7 +227,13 @@ test('控制器：启用注册、禁用注销、状态', () => {
   assert.equal(registered?.name, 'memory_evolve_search_local_files', '启用后注册工具')
   const status = ctrl.status()
   assert.equal(status.enabled, true)
-  assert.deepEqual(status.providers, ['mdfind', 'rg', 'walk'])
+  // provider 链按本机探测结果解析：macOS 上 mdfind 必在，其它平台不得出现
+  if (process.platform === 'darwin') {
+    assert.deepEqual(status.providers, ['mdfind', 'rg', 'walk'])
+  } else {
+    assert.ok(status.providers.includes('walk'), `walk 必须兜底，实际 ${status.providers.join(',')}`)
+    assert.ok(!status.providers.includes('mdfind'), '非 macOS 不应出现 mdfind')
+  }
   enabled = false
   ctrl.sync()
   assert.equal(registered, null, '禁用后注销工具')
