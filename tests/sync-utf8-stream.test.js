@@ -34,11 +34,15 @@ import { runGit } from '../lib/sync/repo.js'
 
 /**
  * Windows 跳过集成冒烟：该用例靠「无扩展名 + shebang + chmod 755」的假 git
- * 脚本充当 PATH 前置二进制，而 Windows 不能直接执行 shebang 脚本、PATH 分隔符
- * 也是 ';' 而非 ':'。解码逻辑本身已由本文件上半部分的确定性单元用例逐字节
- * 覆盖（真实子进程只验证链路能拼对、不承担回归守卫），故 Windows 上跳过。
+ * 脚本充当 PATH 前置二进制。Windows 上这条路走不通——① 没有 shebang 执行语义；
+ * ② 退而求其次写成 `git.cmd` 也不行：Node 24 为修 CVE-2024-27980，不用
+ * `shell: true` 就拒绝 spawn `.cmd`/`.bat`（实测 `spawnSync('git.cmd')` 直接
+ * 返回 EINVAL），而 `runGit()` 不该为了测试打开 shell；③ 造真正的 `.exe` 假
+ * 二进制需要编译工具链，不适合塞进测试。解码逻辑本身已由本文件上半部分的确定性
+ * 单元用例逐字节覆盖（每个分块边界都由测试显式控制），真实子进程只验证链路能
+ * 拼对、不承担回归守卫，故 Windows 上跳过。
  */
-const skipOnWindows = process.platform === 'win32' ? 'Windows 不支持 POSIX shebang 假 git 脚本' : false
+const skipOnWindows = process.platform === 'win32' ? 'Windows 无法伪造 git 可执行文件（shebang 不支持、Node 拒绝 spawn .cmd）' : false
 
 /** 假子进程：stdout/stderr 用可手动 push 的 Readable，测试精确控制分块边界。 */
 class FakeChild extends EventEmitter {

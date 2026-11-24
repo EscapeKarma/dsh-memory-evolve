@@ -14,15 +14,17 @@
  *   1. **确定性单元测试（主守卫）**：注入假 spawn + 永不 emit `'close'` 的假
  *      子进程（等价于"孙进程占着管道"），用 `mock.timers` 推进真实阈值，断言
  *      「到点必须 settle」「迟到的 close 不得翻案」「管道被 destroy」。
- *   2. **进程组终止（POSIX 专属）**：真实 detached 子进程 + 真实孙进程，验证
- *      `kill(-pid)` 把整棵树清掉。Windows 没有进程组信号（也没有 SIGKILL 语义），
- *      该用例跳过——Windows 上的保证是"调用方不再被拖住"，孙进程可能活到它
- *      自己超时。
+ *   2. **进程树终止**：真实 detached 子进程 + 真实孙进程，验证整棵树被清掉。
+ *      POSIX 走进程组 `kill(-pid)`；Windows 没有进程组信号（`process.kill(-pid)`
+ *      直接抛 ESRCH），若不特殊处理，`git-remote-https` 会活下来继续占着网络与
+ *      管道写端（实测：杀掉 `git ls-remote` 的父进程后孙进程仍在）。因此
+ *      `lib/sync/repo.js` 的 `killGitTree()` 在 Windows 改用 `taskkill /T /F`
+ *      沿父子关系杀整棵树——两个平台跑的是同一个用例。
  */
 import { mock, test } from 'node:test'
 import assert from 'node:assert/strict'
 import { EventEmitter } from 'node:events'
-import { spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { Readable } from 'node:stream'
 import { NETWORK_TIMEOUT_MS, LOCAL_TIMEOUT_MS, runGit } from '../lib/sync/repo.js'
 
@@ -195,8 +197,9 @@ test('runGit：spawn 报错（如 git 不存在）走 error 分支并带出原�
   assert.match(result.stderr, /ENOENT/)
 })
 
-// POSIX 才能按进程组终止；Windows 无进程组信号，跳过（见文件头说明）。
-test('runGit：超时终止真实进程组（子进程 + 孙进程一并清掉）', { skip: process.platform === 'win32' }, async () => {
+// 两个平台都要成立：POSIX 走进程组（kill(-pid)），Windows 走 taskkill /T /F
+// （见 lib/sync/repo.js 的 killGitTree）。
+test('runGit：超时终止真实进程树（子进程 + 孙进程一并清掉）', async () => {
   // 假 spawn 返回一个**真实的** detached 子进程：它再派生一个孙进程，两者都
   // 活着并持有 stdout/stderr 管道——正是 git → git-remote-https 的形态。
   const script = [
@@ -254,6 +257,14 @@ test('runGit：超时终止真实进程组（子进程 + 孙进程一并清掉�
     assert.equal(await waitGone(grandchildPid), true, '孙进程必须随进程组一起被终止')
   } finally {
     mock.timers.reset()
-    try { process.kill(-child.pid, 'SIGKILL') } catch { /* 已清理 */ }
+    // 用例失败时兜底清理：POSIX 杀进程组，Windows 交给 taskkill 杀整棵树。
+    if (process.platform === 'win32') {
+      try {
+        spawnSync('taskkill', ['/PID', String(child.pid), '/T', '/F'],
+          { stdio: 'ignore', windowsHide: true, timeout: 5000 })
+      } catch { /* 已清理 */ }
+    } else {
+      try { process.kill(-child.pid, 'SIGKILL') } catch { /* 已清理 */ }
+    }
   }
 })
