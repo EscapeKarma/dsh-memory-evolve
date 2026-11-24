@@ -1,0 +1,88 @@
+# 在 Windows 上开发 / 验证本插件
+
+> 本文档面向「fork 之后自己维护」的场景，2026-11 在本机实测通过。
+> macOS / Linux 也能用 `npm run test:win`（脚本本身跨平台，名字是历史原因）。
+
+## 1. 需要什么
+
+| 项 | 要求 | 本机实测值 |
+|---|---|---|
+| Node.js | **≥ 22.18**（`tests/client-compat.test.js` 直接 import `.ts`，依赖原生类型剥离） | DSH 桌面自带 v24.21.0 |
+| git | 任意较新版本（测试会在临时目录里 init / commit / push） | 2.56.0 |
+| pnpm / npm 安装依赖 | **不需要**，本仓库零运行期依赖 | — |
+
+DSH 桌面版自带的 Node 位于（示例）：
+
+```
+C:\Users\<你>\.dsh\dsh-runtimes\dsh-primary-runtime\dependencies\node\bin\node.exe
+```
+
+它默认不在 PATH 里，用绝对路径调用即可，例如：
+
+```bash
+"C:/Users/<你>/.dsh/dsh-runtimes/dsh-primary-runtime/dependencies/node/bin/node.exe" --version
+```
+
+## 2. 跑测试
+
+```bash
+# 推荐：带好 git 环境变量的跑批脚本
+npm run test:win
+
+# 等价手写
+node scripts/test-win.mjs
+
+# 只跑一个文件
+node scripts/test-win.mjs tests/canvas.test.js
+
+# 换 reporter
+node scripts/test-win.mjs --test-reporter=spec
+```
+
+`scripts/test-win.mjs` 只做三件事：把测试用 git 身份、`init.defaultBranch=main`
+通过**环境变量**注入子进程；检查你是不是在 `node_modules` 里跑（那是必然报
+`ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING` 的，因为 Node 拒绝加载
+`node_modules` 内的 `.ts`）；把剩下的参数原样交给 `node --test`。它不改任何全局
+git 配置。
+
+### 期望结果
+
+```
+# tests 895 / pass 893 / fail 0 / skipped 2
+```
+
+* 1 个 skip 是作者原本就标了的；
+* 1 个 skip 是 `tests/sync-utf8-stream.test.js` 的集成冒烟：它靠「无扩展名 +
+  shebang 的假 git 脚本」劫持 PATH，Windows 不能直接执行这种脚本，故在 win32 上
+  跳过（同一文件里逐字节覆盖解码逻辑的单元用例仍然跑）。
+
+全量跑一轮约 60~180 秒（取决于机器负载）。
+
+## 3. 不配 git 身份会怎样（历史坑）
+
+`tests/` 下有多处会在临时目录 `git init` 后 commit / push。如果这台机器没有
+`user.name` / `user.email`，会看到一片 `Author identity unknown`；如果
+`init.defaultBranch` 不是 `main`，会看到 `src refspec main does not match any`
+（用例写的是 `git push origin main`）。两者都不是插件 bug，`npm run test:win`
+已经替你处理。
+
+## 4. 构建前端 bundle 的已知限制
+
+`npm run build` 目前**在非作者机器上跑不通**，因为：
+
+* `tsconfig.json` 的 `paths` 硬编码了作者 Mac 路径 `/Users/edgar/.dsh/source/current/**`；
+* `scripts/build.mjs` 从 `~/.dsh/source/current` 解析 esbuild（可用 `DSH_SOURCE` 覆盖）。
+
+也就是说：改 `lib/*.js`（宿主侧手写 ESM）可以直接改、直接测；改 `src/client/*.tsx`
+需要先把 `tsconfig.json` 的路径与 esbuild 的来源修好，产物 `lib/client.js` 是提交进
+仓库的，必须和源码一起更新。相关修复见项目的维护计划「阶段③」。
+
+## 5. 排障速查
+
+| 现象 | 原因 | 处理 |
+|---|---|---|
+| `ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING` | 在 `node_modules/dsh-memory-evolve` 里跑测试 | 在普通 clone 目录跑 |
+| 大量 `Author identity unknown` | 没有 git 身份 | 用 `npm run test:win` |
+| `src refspec main does not match any` | 默认分支是 master | 用 `npm run test:win` |
+| `spawnSync node ENOENT` / `status: null` | `node` 不在 PATH | 用脚本跑（它用 `process.execPath` 之外的场景也已修） |
+| 画板打开 `C:\...\.ssh\id_rsa` 没被拦 | 旧版敏感路径判定只认 `/` | 已在 `lib/canvas.js` 的 `findDeniedFragment` 修复 |
