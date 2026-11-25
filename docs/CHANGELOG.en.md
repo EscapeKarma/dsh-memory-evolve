@@ -4,6 +4,31 @@ All version changes for this repository, in reverse chronological order.
 
 > [中文](CHANGELOG.md)
 
+## Unreleased
+
+### Security (audit B1③: attachment paths)
+
+- `de_channel_send` / `de_notify` now validate the path of every local file before sending: anything matching the sensitive-directory list (`.ssh`, `.aws`, `.env`, …) is rejected, checked **both on the literal string and again on `realpath`**, so symlinks, junctions and case tricks no longer slip through.
+- New `channelSendRoots` option (default `[]` = no directory limit, sensitive paths still blocked): when set to absolute paths, only files under those roots may be sent. On Windows the comparison normalises to `/` and ignores case.
+- Behaviour change: a single command can no longer exfiltrate any local file to an IM channel — sensitive and out-of-root paths are refused with a readable per-channel reason.
+
+### Fixed (audit A1–A7, B2, B3)
+
+- **A1 branch names can no longer corrupt entries**: the `memory` tool's `branches` argument rejects names containing `]`, `\n` or `\r` (they end up inside the `[branch:…]` head tag).
+- **A2 directory names are no longer parsed as rg options**: list mode of `memory_evolve_search_local_files` inserts `--` before the roots, so a directory starting with `-` stays a path.
+- **A3 `/api/todo?date=` only accepts `YYYY-MM-DD`**: anything else returns 400 (the value used to be concatenated into a per-day filename).
+- **A4 review interval is clamped to 1–50 before saving**: clearing the input or pasting junk can no longer turn "review every N turns" into 0 or a huge number; the config panel's save-key shape is unchanged.
+- **A5 newlines in aliases are collapsed to spaces**: an alias is injected as one snapshot line, so a newline could forge a new section.
+- **A6 model-table save failures are reported**: the panel now shows "Save failed: …" instead of silently pretending success.
+- **A7 frontend write de-duplication and stale-response guards**: prompt and broadcast destructive actions cannot be double-fired while a request is in flight; the memory and todo views drop late responses after a session switch.
+- **B2 git subprocesses run with an environment whitelist** (new `lib/sync/env.js`): only `PATH`/`HOME`/`GIT_*`/`LC_*`/proxy/certificate keys pass through; `GH_TOKEN`, `GITHUB_TOKEN`, `*_API_KEY`, `*_TOKEN` and `*_SECRET` are stripped, so git no longer inherits the host's model API keys.
+- **B3 archive / list / expand use the effective working directory**: `archive`, `list(archived)`, `expand` and `branches` no longer read the session header cwd, so subagents and cross-workspace runs stay in the same project bucket they write to (the other half of #106).
+
+### Tests
+
+- New `tests/hardening-c.test.js` (12 cases: attachment deny-list and roots, symlink realpath, git env whitelist, alias collapsing, `date` traversal, frontend de-dup and tokens, branch-name validation, rg `--`).
+- Full suite: 1117 tests / 1116 pass / 0 fail / 1 skipped.
+
 ## 2026-11-26 · v0.6.0 (P3 group C: frontend stability)
 
 ### Fixed (P3 group C: frontend stability)

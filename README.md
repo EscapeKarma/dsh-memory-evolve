@@ -278,6 +278,7 @@ AI 的对话是「一次性」的：换项目、隔几天、开新会话就忘�
 | `keyProgressiveDisclosure` / `memoryProgressiveDisclosure` / `userProgressiveDisclosure` | `off` | `off` 全量注入 / `auto` 小数据量全量 / `on` 始终摘要 |
 | `summaryMinChars` | `0` | 摘要模式下正文不超过该字符数的条目保持全文，更长的才折成摘要行。`0`=关闭（与旧版一致），建议 `400`（实测省约 61%）；相邻版本 0.5.0 起可用 |
 | `trustedHosts` | `[]` | 允许访问插件 HTTP 接口的额外 Host（局域网 / 反向代理场景）。默认空 = 只接受本机回环访问；跨站请求一律拒绝。0.5.0 起可用 |
+| `channelSendRoots` | `[]` | 允许通过 `de_channel_send` / `de_notify` 外发的目录白名单（绝对路径）。默认空 = 不限制目录，但敏感路径（`.ssh`、`.aws`、`.env` 等）永远拒绝。0.6.1 起可用 |
 | `projectInjectMode` / `dailyInjectMode` | `off` | project / daily 日志默认不注入（每写必变，会废掉前缀缓存）；`tail:N` 注入最近 N 条、`always` 全量 |
 | `perTurnWriteGuard` / `writeGuardThreshold` | `false` / `2` | 写入看门狗：连续 N 轮没写日志就提醒 |
 | `todoEnabled` | `true` | 待办工具与 Tab |
