@@ -14,13 +14,34 @@ All version changes for this repository, in reverse chronological order.
 
 - The `es` search provider reported "rg does not support directory search" for directory/all queries — now names the right provider and the fallback.
 
+### Security (audit round 1)
+
+- **Same-origin guard on every plugin HTTP route** (audit P0-1): one shared guard rejects cross-site `Origin`, cross-site `Sec-Fetch-Site`, `Origin: null` and DNS rebinding; write requests must be `application/json` (cross-site form posts stop working); requests without `Origin` require a loopback peer or a trusted `Host`. New `trustedHosts` config (empty by default) for LAN / reverse-proxy setups. Measured before: a cross-site `POST /memory-evolve/api/config` returned 200 on an older host; now 403 / 415.
+- **COI runtime adapters restricted to built-in ids** (audit P0-2): custom `binary` / `args` / `testCmd` are no longer accepted (they let any caller able to edit config run arbitrary commands); custom entries in old config files are dropped on load. Only cosmetic overrides remain (enabled, name, use case, guide, model, timeout).
+- advisor same-origin guard now also requires a trusted `Host` (it previously only compared Origin with Host, which DNS rebinding defeats).
+- `memory-sync/global-*` endpoints now require POST (a GET could trigger a sync and a remote write).
+
+### Fixed (audit rounds 2-4)
+
+- **`add` / `replace` reject the entry delimiter §**: content containing it silently split one memory into two, after which the entry could never be replaced or removed as a whole (the GUI path had this check; the tool path did not).
+- **`replace` keeps program metadata**: `[branch:…]` / `[dsh-only]` / `[summary:…]` are preserved when the caller does not rewrite them.
+- **Suggestion queue dedups exact content only**: mutual containment used to swallow a longer, newer fact because a shorter entry contained it.
+- **Project buckets normalize the cwd**: `D:\repo` vs `D:/repo/` no longer yield two memory buckets, and buckets created by older versions (raw-cwd hash) are still reused.
+- **Canvas path hardening**: the deny list covers `.docker/` / `.kube/` / `.netrc` / `.npmrc` / PowerShell history; the resolved real path is checked again (symlink / junction bypass closed); Windows opens no longer go through `cmd /c start` (so `&` / `|` in a path are not shell operators) but use `explorer.exe` with an argument array.
+- **fsync before rename** for memory writes: a power cut no longer leaves a 0-byte file that reads as an empty library.
+- **A failing track read no longer breaks the session**: that track is skipped for the turn with one hint line instead of throwing on every step.
+- **Injection sanitizing**: memory entries are flattened (newlines, leading heading markers, `System:`-style role prefixes, fake XML tags) before they enter the system prompt -- memory text can arrive from cross-site writes or community PRs and must not be able to forge structure.
+- **Lock files get a hard age limit**: a stale lock whose pid was reused no longer waits forever.
+- **Hot path without subprocesses**: `gitBranch()` reads `.git/HEAD` directly (invalidated by mtime) instead of `spawnSync('git')` per step; memory file reads are cached by mtime.
+- **Output caps**: the sync worker gets a 120s hard timeout (kills the whole tree, reports honestly); git subprocesses cap stdout / stderr at 4MB each.
+
 ### Docs
 
 - New `docs/不采纳的社区提案.md` (rejected-proposal log): why #72 (Jev auto-approval) is not adopted, why #66's block C keeps only the es.exe fallback chain instead of the Everything IPC + PowerShell path, and that #65 / #82 are already covered.
 
 ### Tests
 
-- New `tests/summary-v2.test.js` (9 cases). Full suite: 1047 tests / 1046 pass / 0 fail / 1 skipped.
+- New `tests/summary-v2.test.js` (9), `tests/api-csrf.test.js` (15), `tests/coi-adapters-whitelist.test.js` (5), `tests/data-integrity.test.js` (8), `tests/snapshot-hardening.test.js` (4), `tests/perf-hardening.test.js` (4). Full suite: 1047 tests / 1046 pass / 0 fail / 1 skipped.
 
 ## 2026-11-25 · v0.4.3 (P3: COI retries keep content, session-scoped isolation)
 

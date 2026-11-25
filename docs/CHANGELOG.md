@@ -14,13 +14,34 @@
 
 - `es` 搜索提供者在"目录/全部搜索"时误报"rg 不支持目录搜索"——改为正确的提供者名与回落说明。
 
+### 安全（巡检刀1）
+
+- **插件全部 HTTP 路由补齐同源校验**（巡检 P0-1）：统一守卫拦跨站 Origin、跨站 `Sec-Fetch-Site`、`Origin: null`、DNS rebinding；写请求必须是 `application/json`（跨站表单提交因此失效）；无 Origin 的调用要求对端回环或 Host 可信；新增 `trustedHosts` 配置（默认空），用于局域网 / 反向代理等确实需要远程访问的场景。修前实测：旧版宿主上跨站 `POST /memory-evolve/api/config` 返回 200，现在 403 / 415。
+- **COI 运行时适配器改为内置白名单**（巡检 P0-2）：不再接受自定义 `binary` / `args` / `testCmd`——它们能让任何能改配置的调用方执行任意命令；旧配置文件里的自定义条目在加载时丢弃。只保留外观类覆盖（启用、名称、用途、指南、模型、超时）。
+- advisor 的同源守卫补「Host 必须可信」判定（原实现只比较 Origin 与 Host 相等，DNS rebinding 可绕过）。
+- `memory-sync/global-*` 端点补 POST 方法校验（原来 GET 也能触发同步与远端写入）。
+
+### 修复（巡检刀2 / 刀3 / 刀4）
+
+- **`add` / `replace` 拒绝条目分隔符 §**：含 § 的内容会把一条记忆静默拆成两条，此后无法整体替换或删除（GUI 路径一直有校验，工具路径漏了）。
+- **`replace` 保留程序元数据**：不再丢失 `[branch:…]` / `[dsh-only]` / `[summary:…]`——调用方没有重写这些标记时原样保留。
+- **待确认队列只对完全相同的内容去重**：原来「互相包含」也算重复，短条目会把包含它的新事实吞掉。
+- **项目分桶归一化**：`D:\repo` / `D:/repo/` 等不同写法不再产生两个记忆桶；升级前按旧哈希建的桶仍然沿用（不会看起来「记忆丢了」）。
+- **画板敏感路径加固**：拒绝表补 `.docker/` / `.kube/` / `.netrc` / `.npmrc` / PowerShell 历史；解析真实路径后再判一次（软链接 / junction 不再能绕过）；Windows 打开不再经 `cmd /c start`（路径里的 `&` / `|` 不再被当成命令分隔符），改用 `explorer.exe` 直传参数。
+- **记忆写入 fsync**：先刷盘再 rename，断电不再留下会被当成空库的 0 字节文件。
+- **快照读取失败不再拖垮会话**：某条轨道读失败时降级为「本轮不注入该轨」并给一行提示，而不是每一步都抛错。
+- **注入清洗**：记忆条目进入系统提示前抹平换行、行首标题符与 `System:` 类角色前缀、伪 XML 标签（记忆文本可由跨站写入 / 社区 PR 提供，不能让它伪造结构）。
+- **锁文件补硬上限**：pid 被复用时十分钟以上的旧锁不再无限等待。
+- **快照热路径去子进程**：`gitBranch()` 改为直接读 `.git/HEAD`（按 mtime 失效），不再每步 `spawnSync('git')`；记忆文件读取按 mtime 缓存，未变更时只花一次 `stat`。
+- **同步子进程与 git 输出补上限**：worker 120s 硬超时（超时杀整棵进程树并如实报错），stdout / stderr 各 4MB 上限。
+
 ### 文档
 
 - 新增 `docs/不采纳的社区提案.md`：记录 #72（Jev 自动审批）不采纳的四条理由、#66 C 块（Everything IPC + PowerShell 直连）只保留 es.exe 回落链的决策，以及 #65 / #82 已被现有实现覆盖的结论。
 
 ### 测试
 
-- 新增 `tests/summary-v2.test.js`（9 例）。全量 1047 例 / 1046 通过 / 0 失败 / 1 跳过。
+- 新增 `tests/summary-v2.test.js`（9 例）、`tests/api-csrf.test.js`（15 例）、`tests/coi-adapters-whitelist.test.js`（5 例）、`tests/data-integrity.test.js`（8 例）、`tests/snapshot-hardening.test.js`（4 例）、`tests/perf-hardening.test.js`（4 例）。全量 1083 例 / 1082 通过 / 0 失败 / 1 跳过。
 
 ## 2026-11-25 · v0.4.3（P3：COI 重试不丢内容、会话级隔离）
 

@@ -267,6 +267,7 @@ Runtime settings live under *Settings → Memory Evolve → Configuration*, or i
 | `reviewMode` | `suggest` | `suggest` = proposals go to the queue; `auto` = write directly |
 | `keyProgressiveDisclosure` / `memoryProgressiveDisclosure` / `userProgressiveDisclosure` | `off` | `off` full text / `auto` full for small datasets / `on` always summaries |
 | `summaryMinChars` | `0` | In summary mode, entries whose body is at most this many characters stay fully injected; longer ones fold into a one-line summary. `0`=off (same as before), `400` recommended (~61% saving); available from 0.5.0 |
+| `trustedHosts` | `[]` | Extra Hosts allowed to reach the plugin HTTP API (LAN / reverse-proxy setups). Empty = loopback only; cross-site requests are always rejected. Available from 0.5.0 |
 | `projectInjectMode` / `dailyInjectMode` | `off` | project / daily logs are not injected by default (they change on every write, which defeats prefix caching); `tail:N` injects the newest N entries, `always` injects everything |
 | `perTurnWriteGuard` / `writeGuardThreshold` | `false` / `2` | write watchdog: remind after N turns without a log write |
 | `todoEnabled` | `true` | todo tool and tab |
