@@ -53,6 +53,8 @@ const PANEL_KEYS = [
   'keyFullInjectCharLimit',
   'memoryProgressiveDisclosure',
   'userProgressiveDisclosure',
+  'projectInjectMode',
+  'dailyInjectMode',
 ]
 
 /** 截取 saveConfig 里 `const patch = { ... }` 那一段。 */

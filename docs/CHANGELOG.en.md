@@ -4,6 +4,16 @@ All version changes for this repository, in reverse chronological order.
 
 > [中文](CHANGELOG.md)
 
+## Unreleased
+
+### Added
+
+- **#103 opt-in per-track injection**: new `projectInjectMode` / `dailyInjectMode` settings (also two dropdowns in the memory settings panel). Values: `off` (default) / `tail:N` / `always`. The project and daily logs are still **not injected** by default — they change on every write, and each change makes the host append another runtime-context tail message, defeating prefix caching. When you need to resume interrupted long work, or a subagent needs the parent project context, that cache cost is worth paying: `tail:N` injects only the newest N entries, `always` injects everything. With `off` the rendered snapshot is byte-for-byte identical to before (pinned by a regression test). Upstream issue #103, item 1 (per-entry `[inject:off]` markers and hit-driven injection remain future work).
+
+### Tests
+
+- New `tests/snapshot-inject-mode.test.js` (5 cases): byte-identical output with and without entries when off, `tail:N` keeps only the newest N in oldest→newest order, `always` injects everything, a malformed mode falls back to off, no cwd means no project injection, and the `validateRuntimePatch` accept/reject boundaries for `off` / `tail:N` / `always`.
+
 ## 2026-11-25 · v0.4.1 (P1: injection stability, approval robustness)
 
 ### Fixed

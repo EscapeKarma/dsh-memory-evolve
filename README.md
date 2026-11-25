@@ -276,6 +276,7 @@ AI 的对话是「一次性」的：换项目、隔几天、开新会话就忘�
 | `reviewEnabled` / `reviewInterval` | `false` / `5` | 回合内记忆审查与间隔 |
 | `reviewMode` | `suggest` | `suggest`=提议走确认队列；`auto`=直接写 |
 | `keyProgressiveDisclosure` / `memoryProgressiveDisclosure` / `userProgressiveDisclosure` | `off` | `off` 全量注入 / `auto` 小数据量全量 / `on` 始终摘要 |
+| `projectInjectMode` / `dailyInjectMode` | `off` | project / daily 日志默认不注入（每写必变，会废掉前缀缓存）；`tail:N` 注入最近 N 条、`always` 全量 |
 | `perTurnWriteGuard` / `writeGuardThreshold` | `false` / `2` | 写入看门狗：连续 N 轮没写日志就提醒 |
 | `todoEnabled` | `true` | 待办工具与 Tab |
 | `searchDocsEnabled` / `searchDocsMode` | `false` / 未设 | 本地文档检索；四档 `all`/`filename`/`content`/`off` |

@@ -137,6 +137,11 @@ interface RuntimeConfig {
   memoryProgressiveDisclosure: 'auto' | 'off' | 'on'
   /** 全局轨 user 渐进式披露：同上。user 轨条目短、摘要收益小（实测约省 500 字符），一般保持 off。 */
   userProgressiveDisclosure: 'auto' | 'off' | 'on'
+  /** #103 project 轨注入：off（默认，不注入，缓存最省）/ tail:N（只注入最近 N 条）/ always（全量）。
+   *  这两条轨道每次写入都会变，注入会让宿主每次追加一条 runtime-context 尾消息。 */
+  projectInjectMode: string
+  /** #103 daily 轨注入：取值同上。 */
+  dailyInjectMode: string
   /** 记忆写入看门狗（用户拍板 2026-09-04：默认关——根源是模型指令遵循
    *  能力，强模型不需要；打开后连续 N 轮未写 daily/project 快照会置顶提醒）。 */
   perTurnWriteGuard: boolean
@@ -308,6 +313,8 @@ export function MemoryQueueView(props: MemoryQueueViewProps): JSX.Element {
       keyFullInjectCharLimit: draft.keyFullInjectCharLimit,
       memoryProgressiveDisclosure: draft.memoryProgressiveDisclosure,
       userProgressiveDisclosure: draft.userProgressiveDisclosure,
+      projectInjectMode: draft.projectInjectMode,
+      dailyInjectMode: draft.dailyInjectMode,
     }
     void api<{ config: RuntimeConfig }>('/api/config', {
       method: 'POST',
@@ -815,6 +822,39 @@ export function MemoryQueueView(props: MemoryQueueViewProps): JSX.Element {
                     <option value="auto">{t('panel.config.userProgressiveDisclosure.auto')}</option>
                     <option value="off">{t('panel.config.userProgressiveDisclosure.off')}</option>
                     <option value="on">{t('panel.config.userProgressiveDisclosure.on')}</option>
+                  </select>
+                </label>
+                {/* #103 轨道级注入：project / daily 默认不注入（每次写入都变，会废掉缓存） */}
+                <label className="me-field">
+                  <span className="me-field-label">
+                    {t('panel.config.projectInjectMode')}
+                    <em className="me-field-hint">{t('panel.config.projectInjectMode.hint')}</em>
+                  </span>
+                  <select
+                    className="me-todo-select"
+                    value={draft.projectInjectMode ?? 'off'}
+                    onChange={(event) => patchDraft({ projectInjectMode: event.target.value })}
+                  >
+                    <option value="off">{t('panel.config.injectMode.off')}</option>
+                    <option value="tail:5">{t('panel.config.injectMode.tail5')}</option>
+                    <option value="tail:20">{t('panel.config.injectMode.tail20')}</option>
+                    <option value="always">{t('panel.config.injectMode.always')}</option>
+                  </select>
+                </label>
+                <label className="me-field">
+                  <span className="me-field-label">
+                    {t('panel.config.dailyInjectMode')}
+                    <em className="me-field-hint">{t('panel.config.dailyInjectMode.hint')}</em>
+                  </span>
+                  <select
+                    className="me-todo-select"
+                    value={draft.dailyInjectMode ?? 'off'}
+                    onChange={(event) => patchDraft({ dailyInjectMode: event.target.value })}
+                  >
+                    <option value="off">{t('panel.config.injectMode.off')}</option>
+                    <option value="tail:5">{t('panel.config.injectMode.tail5')}</option>
+                    <option value="tail:20">{t('panel.config.injectMode.tail20')}</option>
+                    <option value="always">{t('panel.config.injectMode.always')}</option>
                   </select>
                 </label>
                 <label className="me-field">

@@ -4,6 +4,16 @@
 
 > [English](CHANGELOG.en.md)
 
+## 未发布
+
+### 新增
+
+- **#103 可选轨道级注入**：新增配置 `projectInjectMode` / `dailyInjectMode`（「记忆配置」面板里也有两个下拉），取值 `off`（默认）/ `tail:N` / `always`。project 与 daily 日志默认仍然**不进快照**——它们每次写入都会变，一变宿主就追加一条 runtime-context 尾消息、废掉前缀缓存；但长任务中断后要接着干、或子代理需要父项目上下文时，这份缓存代价是值得付的，所以给出开关：`tail:N` 只注入最近 N 条，`always` 全量。`off` 时渲染结果与升级前逐字节一致（回归用例钉死）。关联上游 issue #103（轨道级注入策略的第 1 项；条目级 `[inject:off]` 标记与命中驱动注入留待后续）。
+
+### 测试
+
+- 新增 `tests/snapshot-inject-mode.test.js`（5 例）：默认 off 时带不带条目输出逐字节相等、`tail:N` 只取最近 N 条且保持旧→新顺序、`always` 全量、开关值写错回落 off、无 cwd 时不注入 project、`validateRuntimePatch` 对 `off` / `tail:N` / `always` 与非法值的接受/拒绝边界。
+
 ## 2026-11-25 · v0.4.1（P1：注入稳定性、采纳鲁棒性）
 
 ### 修复
