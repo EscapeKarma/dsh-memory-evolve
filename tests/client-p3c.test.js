@@ -13,7 +13,8 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { describe, test } from 'node:test'
 
-const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')
+// 读源码时归一换行：CI 的 windows-latest 检出后是 CRLF，不归一会让跨行正则失效。
+const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8').replace(/\r\n/g, '\n')
 const coi = read('src/client/CoIView.tsx')
 const bookmarks = read('src/client/BookmarksView.tsx')
 const features = read('src/client/ui-settings-features.ts')
