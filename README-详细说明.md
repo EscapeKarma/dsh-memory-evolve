@@ -377,7 +377,10 @@ agent 会通过 `memory` 工具读写记忆，通过 `skill_manage` 工具管理
 
 **配置**（原「运行时配置」）：`reviewEnabled` / `reviewInterval` / `skillReviewEnabled` / `perTurnProjectWrites` / `perTurnDailyWrites` / `perTurnKeyWrites` / `searchDocsEnabled`（本地文件搜索工具开关）/ `keyProgressiveDisclosure`、`memoryProgressiveDisclosure`、`userProgressiveDisclosure`（渐进式披露）等的表单修改，保存后**立即生效并持久化**（覆盖 config.yaml 对应项，重启不丢）。本地搜索 / COI 调度 / 提示词管理器 / 临时信息 / 画板 / 通知 / 会话评审的**启用开关都在这里**。
 
-**版本**：显示当前版本、检查更新、一键更新（只对 git clone 安装有效）。
+**版本（v0.4.0 起按安装方式分流）**：页面先显示**安装方式**（`git clone` = 源码 / 市场与 `dsh plugin add` = 包）与当前版本号。
+
+- **源码安装**：保留了原先的 git tag 比对与「更新到 vX.Y.Z」（24h 最多自动检测一次，红点提示）——这条路径会切换 git 工作树，属开发者用途。
+- **包安装**：目录里没有 `.git`，一键更新不可用（**这不是故障**）。页面显示「由插件市场管理」、给出可复制的升级命令 `dsh plugin --profile <profile> add github:EscapeKarma/dsh-memory-evolve`，并提供**只读**的发布检查：24 小时最多一次匿名 `GET` GitHub Releases，只读版本号与发布日期，断网/限流时沿用上次结果——不下载、不安装、不需要 token。导航红点在包安装形态下由这项只读检查驱动。
 
 会话页顶部则有 **记忆 / 技能 / 待办 / 无限画板 / COI 调度 / 会话广播 / 提示词 / 记忆同步 / 模型设置 / 书签 / 会话评审 / Web UI 设置** 等标签页（`memoryTabEnabled` **默认开启**，仅可通过 config.yaml 配置——它不是运行时可改项，避免在 Tab 内关闭后无法找回）。每个 Tab 都有一个**「指南」子 Tab**：各自功能的详细介绍。
 

@@ -1,25 +1,27 @@
 /**
  * dsh-memory-evolve — version tab (settings tab sub-entry).
  *
- * 「版本」子 Tab：插件版本检测与手动更新界面（一期）。
+ * 「版本」子 Tab：插件版本 / 安装形态 / 可选升级方式（v0.4.0 改造）。
+ *
+ * 为什么改：旧版整页只为 `git clone` 安装设计——包安装（插件市场 /
+ * `dsh plugin add github:…`）的目录里没有 `.git`，一进来就是「不支持自动
+ * 检测 + 插件目录不是 git 仓库（请用 git clone 安装）」，既像报错、又给了
+ * 一个普通用户不会做的建议。现在按安装形态分三种呈现：
+ *
+ *   1. `source`（git clone）：保留原有「检查 / 更新到 vX.Y.Z」全流程，
+ *      并明确标注这是开发者路径（会切换本地工作树）；
+ *   2. `package`（市场 / add 安装）：不再假装支持一键更新，改为显示
+ *      当前版本 + 一条可复制的升级命令 + 只读的「有没有新版」提示；
+ *   3. 加载中：只显示占位，避免闪一下「不支持」再变成正常内容。
  *
  * 数据面：GET /memory-evolve/api/update/status（?force=1 强制重检）与
  * POST /memory-evolve/api/update（{ expectedTag }）。服务端负责全部 git
- * 操作与安全校验（严格 tag 格式 / 24h 惰性缓存 / 原子更新锁 / 目标复核 /
- * dirty 检查 / origin/main 信任校验 / 失败回滚 / 运行-磁盘版本分离），
- * 本组件只做展示与用户交互——**更新结果不存组件 state**（restartRequired
- * 由服务端派生并持久化：badge 重挂/刷新页面后等待重启横幅依然存在，
- * CodeX 复审 P1-6：发布说明也存服务端 lastUpdated.notes，重挂不丢）。
+ * 操作与安全校验（严格 tag 格式 / 24h 惰性缓存 / 原子更新锁 / dirty 检查 /
+ * 信任校验 / 失败回滚），**更新结果不存组件 state**（restartRequired 由
+ * 服务端派生并持久化，重挂/刷新后横幅仍在）。
  *
- * 设计要点：
- *   - 检测与更新分离：检查按钮只刷新状态；更新按钮仅在有新版本时出现，
- *     提交用户当前看到的 expectedTag（防 TOCTOU，目标变化服务端回 409）；
- *   - 更新成功后显示发布说明（tag 附注）与「等待重启」横幅（先重启
- *     dsh web，再刷新浏览器）；若随后的状态刷新失败，仍呈现"更新已完成"
- *     而不是当作更新失败（P1-6）；
- *   - 错误统一为 { code, message }，文案走字典（version.error.<code>），
- *     无硬编码中文（CodeX 复审 P2-4）；
- *   - 全部文案走 zh/en 字典键，无硬编码中文。
+ * 只读检查（`state.release`）：服务端一次 GET GitHub Releases，缓存 24h；
+ * 只显示，不下载、不重装——升级动作始终留给用户点。
  */
 import { useEffect, useState } from 'react'
 import type { Translate } from '@deepseek-ai/dsh-client-ui-slots'
@@ -32,10 +34,25 @@ export interface VersionTabViewProps {
 /** SettingsTabView 引用用（同 VersionTabViewProps，兼容名）。 */
 export type VersionTabTabProps = VersionTabViewProps
 
+/** 只读发布检查结果（服务端 /api/update/status 的 release 字段）。 */
+interface ReleaseInfo {
+  current?: string | null
+  latest?: string | null
+  hasUpdate?: boolean
+  url?: string
+  checkedAt?: number | null
+  publishedAt?: number | null
+  error?: { kind?: string; message?: string } | null
+}
+
 /** 服务端状态对象（/api/update/status 的 DTO 白名单，字段对齐 lib/update.js）。 */
 interface UpdateState {
   ok?: boolean
   status?: string // latest | outdated | no-release | unsupported | unknown
+  /** source=git clone；package=市场/`dsh plugin add` 安装（无 .git）。 */
+  installKind?: 'source' | 'package'
+  /** 插件自身版本（package.json version）。 */
+  pluginVersion?: string | null
   latestTag?: string | null
   localTag?: string | null
   noteCode?: string
@@ -44,6 +61,7 @@ interface UpdateState {
   lastError?: { kind?: string; message?: string } | null
   restartRequired?: boolean
   lastUpdated?: { tag?: string; at?: number; notes?: string } | null
+  release?: ReleaseInfo | null
 }
 
 /** 更新接口返回（POST /api/update）。 */
@@ -62,6 +80,9 @@ interface ViewError {
   message: string
 }
 
+/** 包安装的升级命令（用户复制到终端，或去插件页点「更新」）。 */
+export const UPGRADE_COMMAND = 'dsh plugin --profile <profile> add github:EscapeKarma/dsh-memory-evolve'
+
 /** 刷新当前状态（force 走「检查更新」语义）。 */
 async function fetchStatus(force: boolean): Promise<UpdateState> {
   const res = await fetch(`/memory-evolve/api/update/status${force ? '?force=1' : ''}`)
@@ -76,11 +97,37 @@ function formatTime(ms?: number | null): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 
+/** 复制文本（有剪贴板 API 用 API，没有就退回隐藏 textarea）。 */
+async function copyText(text: string): Promise<boolean> {
+  try {
+    if (navigator?.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text)
+      return true
+    }
+  } catch {
+    /* 权限被拒时走下面的兜底 */
+  }
+  try {
+    const area = document.createElement('textarea')
+    area.value = text
+    area.setAttribute('readonly', '')
+    area.style.position = 'fixed'
+    area.style.opacity = '0'
+    document.body.appendChild(area)
+    area.select()
+    const ok = document.execCommand('copy')
+    document.body.removeChild(area)
+    return ok
+  } catch {
+    return false
+  }
+}
+
 /** The conversation view version tab component. */
 export function VersionTabView(props: VersionTabTabProps): JSX.Element {
   const { t } = props
 
-  /** 状态数据（null=首次加载中——期间禁用操作按钮）。 */
+  /** 状态数据（null=首次加载中——期间不渲染任何「不支持」判断）。 */
   const [state, setState] = useState<UpdateState | null>(null)
   /** 最近一次成功更新的发布说明（tag 附注，服务端截断 500 字符）。 */
   const [releaseNotes, setReleaseNotes] = useState<string>('')
@@ -88,6 +135,8 @@ export function VersionTabView(props: VersionTabTabProps): JSX.Element {
   const [checking, setChecking] = useState(false)
   /** 「立即更新」进行中。 */
   const [updating, setUpdating] = useState(false)
+  /** 复制命令后的短暂反馈。 */
+  const [copied, setCopied] = useState(false)
   /** 统一错误对象（code 驱动字典文案；网络异常用 'network'）。 */
   const [error, setError] = useState<ViewError | null>(null)
 
@@ -126,7 +175,7 @@ export function VersionTabView(props: VersionTabTabProps): JSX.Element {
           return
         }
         // 成功：先落屏发布说明与"等待重启"（即使随后的状态刷新失败也
-        // 不能显示成更新失败——P1-6）。
+        // 不能显示成更新失败）。
         setReleaseNotes(outcome.releaseNotes ?? '')
         setState({ ...(state ?? {}), restartRequired: true })
         try {
@@ -142,10 +191,34 @@ export function VersionTabView(props: VersionTabTabProps): JSX.Element {
       .finally(() => setUpdating(false))
   }
 
-  const busy = checking || updating || state === null
+  /** 复制升级命令（包安装用户的唯一手动路径）。 */
+  const doCopy = (): void => {
+    void copyText(UPGRADE_COMMAND).then((ok) => {
+      if (!ok) return
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 1600)
+    })
+  }
 
-  // 状态说明（noteCode → 字典文案；兜底不显示）。
-  const noteText = state?.noteCode ? t(`version.note.${state.noteCode}`) : ''
+  const busy = checking || updating || state === null
+  // 老服务端没有 installKind 字段：按 status 推断（unsupported 基本等价于
+  // 包安装），保证降级时不至于把两种形态混在一起显示。
+  const installKind: 'source' | 'package' = state?.installKind === 'source'
+    ? 'source'
+    : state?.installKind === 'package'
+      ? 'package'
+      : state?.status === 'unsupported' ? 'package' : 'source'
+  const release = state?.release ?? null
+  const currentVersion = state?.pluginVersion ?? state?.localTag ?? null
+  const latestVersion = release?.latest ?? state?.latestTag ?? null
+  const releaseHasUpdate = release?.hasUpdate === true
+  // 状态文案：包安装的「检测不支持」是预期行为，换成「由插件市场管理」。
+  const statusText = state === null
+    ? t('version.loading')
+    : installKind === 'package'
+      ? (releaseHasUpdate ? `${t('version.status.package')} · ${t('version.status.outdated')}` : t('version.status.package'))
+      : t(`version.status.${state.status ?? 'unknown'}`)
+  const noteText = installKind === 'source' && state?.noteCode ? t(`version.note.${state.noteCode}`) : ''
 
   return (
     <div className="me-panel">
@@ -160,24 +233,27 @@ export function VersionTabView(props: VersionTabTabProps): JSX.Element {
       <div className="me-block">
         <div className="me-group">
           <div className="me-field">
+            <span className="me-field-label">{t('version.installKind')}</span>
+            <span className="me-field-value">
+              {state === null ? '—' : t(`version.installKind.${installKind}`)}
+            </span>
+          </div>
+          <div className="me-field">
             <span className="me-field-label">{t('version.current')}</span>
-            <span className="me-field-value">{state?.localTag ?? '—'}</span>
+            <span className="me-field-value">{currentVersion ?? '—'}</span>
           </div>
           <div className="me-field">
             <span className="me-field-label">{t('version.latest')}</span>
-            <span className="me-field-value">{state?.latestTag ?? '—'}</span>
+            <span className="me-field-value">{latestVersion ?? '—'}</span>
           </div>
           <div className="me-field">
             <span className="me-field-label">{t('version.statusLabel')}</span>
-            <span className="me-field-value">
-              {state === null
-                ? t('version.loading')
-                : t(`version.status.${state.status ?? 'unknown'}`)}
-            </span>
+            <span className="me-field-value">{statusText}</span>
           </div>
           {noteText !== '' && <p className="me-help">{noteText}</p>}
-          {/* 上次检测失败信息（stale 附加展示，不覆盖最后成功状态） */}
-          {state?.lastError && (
+          {/* 源码安装的检测失败信息（stale 附加展示，不覆盖最后成功状态）；
+              包安装的 lastError 是"没有 git"，不是故障，不显示。 */}
+          {installKind === 'source' && state?.lastError && (
             <p className="me-help">
               {t('version.lastError')}：{state.lastError.message ?? state.lastError.kind ?? '—'}
             </p>
@@ -188,19 +264,60 @@ export function VersionTabView(props: VersionTabTabProps): JSX.Element {
         </div>
       </div>
 
-      {/* —— 操作区：检测与更新分离，更新按钮只在有新版本时出现 —— */}
+      {/* —— 操作区 —— */}
       <div className="me-block">
         <button type="button" className="me-btn" disabled={busy} onClick={() => refresh(true)}>
           {checking ? t('version.checking') : t('version.checkNow')}
         </button>
-        {state?.status === 'outdated' && state.latestTag && (
+        {/* 源码安装：保留一键更新（开发者路径） */}
+        {installKind === 'source' && state?.status === 'outdated' && state.latestTag && (
           <button type="button" className="me-btn me-btn-primary" disabled={busy} onClick={doUpdate}>
             {updating ? t('version.updating') : t('version.updateNow', { tag: state.latestTag })}
           </button>
         )}
+        {/* 包安装：一键更新做不到，也不假装做得到——给可复制的命令 */}
+        {installKind === 'package' && (
+          <button type="button" className="me-btn me-btn-primary" disabled={state === null} onClick={doCopy}>
+            {copied ? t('version.copied') : t('version.copy')}
+          </button>
+        )}
+        {release?.url && releaseHasUpdate && (
+          <a className="me-btn" href={release.url} target="_blank" rel="noreferrer">
+            {t('version.openRelease')}
+          </a>
+        )}
         {error && (
           <p className="me-notice me-notice-error" role="alert">
             {t(`version.error.${error.code}`, { message: error.message })}
+          </p>
+        )}
+      </div>
+
+      {/* —— 安装形态说明 + 包安装的升级命令 —— */}
+      <div className="me-block">
+        <p className="me-help">{installKind === 'package' ? t('version.package.hint') : t('version.source.hint')}</p>
+        {installKind === 'package' && (
+          <pre className="me-notes-pre" style={{ userSelect: 'all' }}>{UPGRADE_COMMAND}</pre>
+        )}
+      </div>
+
+      {/* —— 只读发布检查（所有安装形态都显示） —— */}
+      <div className="me-block">
+        <div className="me-group">
+          <div className="me-field">
+            <span className="me-field-label">{t('version.release.checkTime')}</span>
+            <span className="me-field-value">{formatTime(release?.checkedAt)}</span>
+          </div>
+          {release?.publishedAt && (
+            <div className="me-field">
+              <span className="me-field-label">{t('version.release.publishedAt')}</span>
+              <span className="me-field-value">{formatTime(release.publishedAt)}</span>
+            </div>
+          )}
+        </div>
+        {release?.error && (
+          <p className="me-help">
+            {t('version.release.error')}：{release.error.message ?? release.error.kind ?? '—'}
           </p>
         )}
       </div>
@@ -214,13 +331,6 @@ export function VersionTabView(props: VersionTabTabProps): JSX.Element {
               <span className="me-field-value me-notes-pre">{state?.lastUpdated?.notes ?? releaseNotes}</span>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* —— 不支持自动检测时的安装引导 —— */}
-      {state?.status === 'unsupported' && (
-        <div className="me-block">
-          <p className="me-help">{t('version.unsupported.hint')}</p>
         </div>
       )}
     </div>

@@ -59,6 +59,11 @@ dsh plugin --profile web add github:EscapeKarma/dsh-memory-evolve   # re-add pul
 
 To pin a version, append a commit or tag: `github:EscapeKarma/dsh-memory-evolve#v0.3.0`.
 
+**How do I know a new version exists?** Open *Settings → Memory Evolve → Version*. It first tells you **how the plugin is installed**:
+
+- installed by `git clone` (the directory has `.git`): you can click "update to vX.Y.Z" directly — this is the developer path and it does mutate your working tree;
+- installed by the marketplace or `dsh plugin add` (no `.git`): one-click update **is not available, and that is not a fault**. The page shows "managed by the marketplace", gives you a copyable upgrade command, and uses a **read-only** GitHub check to tell you whether a newer version exists (at most once per 24h; it only reads the version number — no download, no install, no token, and it keeps the last result when offline).
+
 **Temporarily disabling** a plugin that prevents DSH from starting (no uninstall needed):
 
 ```yaml
@@ -246,7 +251,7 @@ Enable under *Settings → Memory Evolve → Configuration* (`advisorEnabled`, o
 - **Confirmation queue**: AI proposals for memory/skills/todos land here; adopt or reject updates only the affected row (v0.3.0) without refreshing everything or dropping your edits;
 - **Model settings**: per-model enabled state, reasoning effort, notes and image-input support;
 - **In-turn memory review**: every N turns the AI distils what is worth remembering and asks you;
-- **Version check**: git tag comparison (at most once per 24h), red dot, one-click update (git-clone installs only);
+- **Version page** (v0.4.0): shows install kind and current version; `git clone` installs get one-click update (git tag comparison, at most once per 24h), marketplace / `dsh plugin add` installs get a copyable upgrade command plus a read-only GitHub release check — no download, no auto-install;
 - **Session search**: search your other local AI tools' (e.g. Codex) session history;
 - **Web UI settings**: mobile layout, wider bubbles, Mermaid rendering, context-usage ring.
 
@@ -299,6 +304,8 @@ Port 443 to github.com can be flaky for some networks (`Connection was reset` / 
 
 **The "check for updates" button does nothing?**
 It compares git tags, so it only works for **git-clone installs**; for `dsh plugin add` or marketplace installs, re-`add` to upgrade.
+
+Since v0.4.0 the version page branches by install kind instead of showing a dead button: `git clone` keeps one-click update; marketplace / `dsh plugin add` installs show "managed by the marketplace" plus a copyable upgrade command, and a read-only GitHub check tells you whether a newer version exists.
 
 **The plugin prevents DSH from starting?**
 Add `- id: dsh-memory-evolve` + `disabled: true` to the profile's `cordis.patch.yml`, start DSH, and file an issue.

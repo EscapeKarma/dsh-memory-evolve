@@ -59,6 +59,11 @@ dsh plugin --profile web add github:EscapeKarma/dsh-memory-evolve   # 重新 add
 
 想固定版本就带上 commit 或 tag：`github:EscapeKarma/dsh-memory-evolve#v0.3.0`。
 
+**怎么知道自己有没有新版？** 打开「设置 → Memory Evolve → 版本」，它会先告诉你**安装方式**：
+
+- `git clone` 安装（目录里有 `.git`）：可以直接点「更新到 vX.Y.Z」，走的是本地 git 切换——这是开发者路径，会改动你的工作树；
+- 市场 / `dsh plugin add` 安装（目录里没有 `.git`）：一键更新**用不了，这不是故障**。页面会显示「由插件市场管理」、给出可复制的升级命令，并用一次**只读**的 GitHub 检查告诉你有没有新版（24 小时一次，只读版本号：不下载、不安装、不需要 token，断网时沿用上次结果）。
+
 **插件导致 DSH 起不来时临时禁用**（无需卸载）：
 
 ```yaml
@@ -256,7 +261,7 @@ AI 的对话是「一次性」的：换项目、隔几天、开新会话就忘�
 - **待确认队列**：AI 提议的记忆/技能/待办都在这里，采纳/拒绝只更新对应行（v0.3.0），不会整块刷新、不丢你没提交的编辑；
 - **模型配置**：维护各模型启用状态、思考等级、备注，标注是否支持图片输入；
 - **回合内记忆审查**：每 N 轮 AI 主动提炼值得记住的信息交你确认；
-- **版本检测**：git tag 比对（24h 最多自动检测一次），红点提示，一键更新（仅对 git clone 安装有效）；
+- **版本页**（v0.4.0）：显示安装方式与当前版本；`git clone` 安装可一键更新（git tag 比对，24h 最多一次），市场 / `dsh plugin add` 安装给出可复制的升级命令 + 只读的 GitHub 发布检查——不下载、不自动安装；
 - **会话搜索**：搜索本机其他 AI 工具（如 Codex）的历史会话；
 - **Web UI 设置**：手机窄屏适配、消息气泡加宽、Mermaid 渲染、上下文占用提醒等开关。
 
@@ -308,7 +313,7 @@ v0.3.0 修了：运行时注入的 `<style>` 补了 `data-plugin` 归属。升�
 github.com 的 443 在你这边可能不稳（`Connection was reset` / `Failed to connect`）。重试 2–4 次即可；`api.github.com` 通常没问题。判断是否成功请看 `git log origin/main..HEAD` 是否为空，别用管道看退出码。
 
 **「检查更新」按钮不起作用？**
-它靠 git tag 比对，只对 **git clone 安装**有效；用 `dsh plugin add github:...` 或市场安装的，用重新 `add` 的方式升级。
+v0.4.0 起按安装方式分流：`git clone` 的可以直接一键更新；市场或 `dsh plugin add` 安装的目录里没有 `.git`，一键更新用不了——版本页会显示「由插件市场管理」，给出升级命令，外加一次只读的 GitHub 检查告诉你有没有新版。
 
 **插件让 DSH 起不来怎么办？**
 在 profile 的 `cordis.patch.yml` 加 `- id: dsh-memory-evolve` + `disabled: true`，启动后到仓库提 issue。

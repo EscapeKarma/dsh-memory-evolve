@@ -6,12 +6,23 @@ All version changes for this repository, in reverse chronological order.
 
 ## Unreleased
 
+### Changed
+
+- **The Version page now branches by install kind** instead of showing everyone a dead button: `git clone` installs keep the one-click update (developer path); marketplace / `dsh plugin add` installs explicitly show "managed by the marketplace", a copyable upgrade command, and an explanatory install-kind note instead of "auto-detection unsupported / please reinstall with `git clone`" (`lib/update.js` gains `detectInstallKind()`; the status API gains `installKind` / `pluginVersion`)
+- **Read-only release check** (new `lib/release-check.js`): at most once per 24h, an anonymous `GET` for the latest GitHub release, reading only `tag_name` / `published_at` / `html_url` and comparing against the local `package.json` version; on 404 (tagged but no release) it falls back to the tags list and prefers semantic tags so date-style tags (e.g. `v26092801`) are not mistaken for newest; results are cached in `release-state.json`, and offline / rate-limited / timed-out checks silently keep the previous result — **no download, no install, no restart, no token, nothing uploaded**
+- In the package install kind, the navigation red dot is now driven by that read-only check (previously only the git check drove it, so package installs were always 0)
+
+### Fixed
+
+- The read-only check reuses `compareVersions()` from `lib/update.js`, which expects the object returned by `parseVersion()` rather than strings — passing strings would silently compare equal; the new module wraps it in `cmpTags()` and normalises `0.3.0` / `v0.3.0`
+
 ### Docs
 
 - Rewrote the main guide `README.md` and `README.en.md`: restructured into "what this repository is → quick start → 30-second tour (tool table) → 11 scenarios → configuration cheat sheet → FAQ → development and maintenance → release process", and covered the behaviour changes introduced by v0.2.0/v0.3.0 (ranked memory retrieval, progressive disclosure, in-place queue updates, settings moved into global Settings, style ownership, attachment name inference, Windows fixes and security notes); added CI/version/licence badges
 - Added `CONTRIBUTING.md` (issue/PR process, hard requirements, commit style, code conventions), `SECURITY.md` (privilege boundary, implemented mitigations, vulnerability reporting) and `docs/README.md` (documentation index)
 - Added `.github` issue templates (bug report / feature request) and a pull request template; blank issues are disabled and security reports are routed to private advisories
 - `README-详细说明.md`: added a document-status note and version-sync note at the top; the "settings entry" section now describes v0.3.0's global *Settings → Memory Evolve* (Guide / Configuration / Version), and the install command points at this fork's GitHub source
+- README: added "how do I know a new version exists?" (what each install kind does) and rewrote the FAQ "the check-for-updates button does nothing?" to branch by install kind
 
 ## 2026-11-24 · v0.3.0 (community fixes merged after the original author went quiet)
 
