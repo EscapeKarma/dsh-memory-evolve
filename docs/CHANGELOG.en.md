@@ -4,7 +4,7 @@ All version changes for this repository, in reverse chronological order.
 
 > [中文](CHANGELOG.md)
 
-## Unreleased
+## 2026-11-26 · v0.6.1 (audit follow-up: attachment path checks + boundary hardening)
 
 ### Security (audit B1③: attachment paths)
 
