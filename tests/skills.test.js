@@ -397,6 +397,74 @@ function treeEntries(dir, prefix = '') {
   return out.sort()
 }
 
+test('approvePendingSkill：技能库已有同名「半装」目录（无 SKILL.md）时合并安装，不抛 EPERM/ENOTEMPTY', () => {
+  // issue #85（Windows 必现 EPERM）+ #108（macOS 报 ENOTEMPTY）：
+  // 技能库里已存在同名目录但没有 SKILL.md——上一次中断安装的残留，或有会话先把
+  // 配套文件（references/、数据文件）写进了技能库。旧实现只挡「目标已有
+  // SKILL.md」，于是放行到 renameSync，而 rename 的目标是非空目录时 Windows 抛
+  // EPERM、POSIX 抛 ENOTEMPTY，用户卡在「装不上也消化不掉队列项」的中间态。
+  const dir = tempDir()
+  try {
+    const pendingDir = join(dir, 'pending-skills')
+    const skillDir = join(dir, 'library', 'skills')
+    const src = join(pendingDir, 'half-installed')
+    const dst = join(skillDir, 'half-installed')
+    const body = GOOD_BODY('half-installed', '半装目录自愈')
+
+    // 待确认侧：SKILL.md + 一个会被技能库侧同名文件覆盖的 references/guide.md
+    mkdirSync(join(src, 'references'), { recursive: true })
+    writeFileSync(join(src, 'SKILL.md'), body)
+    writeFileSync(join(src, 'references', 'guide.md'), 'pending side')
+
+    // 技能库侧：同名目录但没有 SKILL.md，含一个独有数据文件 + 一个同名文件
+    mkdirSync(join(dst, 'references'), { recursive: true })
+    writeFileSync(join(dst, 'styles.jsonl'), '{"kept":true}\n')
+    writeFileSync(join(dst, 'references', 'guide.md'), 'library side')
+
+    const res = approvePendingSkill(pendingDir, skillDir, 'half-installed')
+    assert.equal(res.ok, true, res.message)
+    assert.equal(res.path, join(dst, 'SKILL.md'))
+
+    // 源侧清空（队列项被消费，不会再出现第二条）
+    assert.equal(existsSync(src), false, 'pending 目录必须被消费掉')
+    // 技能主体就位
+    assert.equal(readFileSync(join(dst, 'SKILL.md'), 'utf8'), body)
+    // 同名文件：待确认侧覆盖技能库侧
+    assert.equal(readFileSync(join(dst, 'references', 'guide.md'), 'utf8'), 'pending side')
+    // 技能库侧独有文件：保留（这是 #108 的核心诉求：数据文件不能丢）
+    assert.equal(readFileSync(join(dst, 'styles.jsonl'), 'utf8'), '{"kept":true}\n')
+
+    // 合并后就是「已安装」：再次采纳必须被拒（源侧已被消费，所以先命中
+    // 「待确认技能不存在」；无论哪个分支，结论都是不许再装一次）。
+    const again = approvePendingSkill(pendingDir, skillDir, 'half-installed')
+    assert.equal(again.ok, false)
+
+    // 技能库仍能正常识别它
+    const listed = listSkills(skillDir)
+    assert.ok(listed.some((s) => s.name === 'half-installed'))
+  } finally {
+    clean(dir)
+  }
+})
+
+test('approvePendingSkill：技能库侧半装目录为空目录时同样合并（Windows 对空目录 rename 也报 EPERM）', () => {
+  const dir = tempDir()
+  try {
+    const pendingDir = join(dir, 'pending-skills')
+    const skillDir = join(dir, 'library', 'skills')
+    const body = GOOD_BODY('empty-target', '空目录也合并')
+    mkdirSync(join(pendingDir, 'empty-target'), { recursive: true })
+    writeFileSync(join(pendingDir, 'empty-target', 'SKILL.md'), body)
+    mkdirSync(join(skillDir, 'empty-target'), { recursive: true })
+
+    const res = approvePendingSkill(pendingDir, skillDir, 'empty-target')
+    assert.equal(res.ok, true, res.message)
+    assert.equal(readFileSync(join(skillDir, 'empty-target', 'SKILL.md'), 'utf8'), body)
+  } finally {
+    clean(dir)
+  }
+})
+
 test('approvePendingSkill 跨设备（EXDEV）时降级为 copy+delete 并完整搬移嵌套目录', () => {
   const roots = crossDeviceRoots()
   if (!roots || !isCrossDevice(roots.a, roots.b)) {
