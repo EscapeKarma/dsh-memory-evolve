@@ -656,7 +656,8 @@ test('issue #43: the dtodo turn-end hint reaches user sessions only, never subag
 
 test('issue #53: 快照段净化记忆正文的 {{...}}，防宿主段渲染器 throw', () => {
   const dir = tempDir()
-  const config = resolveConfig({ memoryDir: dir })
+  // 标题注入默认关闭（issue #109），这里显式打开以继续覆盖「标题来自用户输入」这条路径。
+  const config = resolveConfig({ memoryDir: dir, snapshotSessionName: true })
   const store = new MemoryStore(config.memoryDir, config)
   const agent = { id: 'a', session: { header: { cwd: '/proj/x' } } }
   // 真实案例（issue #53）：模型把配置片段当事实记进 KEY 轨，宿主未注册 session
