@@ -156,6 +156,8 @@ export function ModelsTabView(props: ConvViewProps & ModelsTabViewProps): JSX.El
   const [showReasoning, setShowReasoning] = useState(true)
   const [expanded, setExpanded] = useState<string | undefined>(undefined)
   const [saving, setSaving] = useState<SavingSet>(new Set())
+  // A6（巡检）：保存失败要看得见（否则界面保持旧值、用户以为已保存）。
+  const [saveError, setSaveError] = useState<string | undefined>(undefined)
 
   // 同步子 tab 选择到模块级：组件重挂后恢复。
   useEffect(() => { persistedModelsFeature = feature }, [feature])
@@ -186,7 +188,13 @@ export function ModelsTabView(props: ConvViewProps & ModelsTabViewProps): JSX.El
       })
       const data = await res.json() as { ok?: boolean; error?: string }
       if (!res.ok || data.ok !== true) throw new Error(data.error ?? `HTTP ${res.status}`)
+      setSaveError(undefined)
       return true
+    } catch (err) {
+      // A6（巡检）：以前失败只在控制台留下未处理的 rejection，界面保持旧值，
+      // 用户以为保存成功。现在如实报错。
+      setSaveError(err instanceof Error ? err.message : String(err))
+      return false
     } finally {
       setSaving((current) => {
         const next = new Set(current)
@@ -356,6 +364,7 @@ export function ModelsTabView(props: ConvViewProps & ModelsTabViewProps): JSX.El
           : null}
       </div>
       {error !== undefined ? <div className="mt-notice mt-notice-error">{t('modelsTab.loadFailed', { message: error })}</div> : null}
+      {saveError !== undefined ? <div className="mt-notice mt-notice-error">{t('modelsTab.saveFailed', { message: saveError })}</div> : null}
       {snapshot !== null && rows.length === 0
         ? <p className="mt-muted">{t('modelsTab.empty')}</p>
         : null}

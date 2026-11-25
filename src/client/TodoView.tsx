@@ -9,7 +9,7 @@
  * 数据均来自宿主 /memory-evolve/api/todo；样式复用 styles.css 的 me-/mt- 前缀。
  * 看板与列表共用同一套操作路径（完成/恢复、编辑、删除、快速添加），仅展示层不同。
  */
-import { Fragment, useCallback, useEffect, useState } from 'react'
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import type { Translate } from '@deepseek-ai/dsh-client-ui-slots'
 import { alertDialog, confirmDialog } from './dialog'
@@ -173,7 +173,11 @@ export function TodoView(props: TodoViewProps): JSX.Element {
     persistedViewMode = viewMode
   }, [viewMode])
 
+  // A7（巡检）：切会话/切页签时旧请求可能后到覆盖新数据——令牌丢弃过期响应。
+  const loadSeq = useRef(0)
+
   const load = useCallback((): void => {
+    const token = ++loadSeq.current
     setItems(null)
     const params = new URLSearchParams({ sessionId, all: '1' })
     if (target === 'past') params.set('target', 'daily')
@@ -188,6 +192,7 @@ export function TodoView(props: TodoViewProps): JSX.Element {
     // 状态/象限筛选在前端做（all 视图需要跨轨过滤；active = 未完成的所有状态）
     void api<{ items: TodoItem[]; cwd: string | null }>(`/api/todo?${params.toString()}`)
       .then((res) => {
+        if (token !== loadSeq.current) return
         setItems(res.items)
         setCwd(res.cwd)
         // 全部视图下添加默认轨跟随 cwd（与 dtodo 工具缺省一致）
@@ -196,7 +201,10 @@ export function TodoView(props: TodoViewProps): JSX.Element {
           return res.cwd ? 'project' : 'work'
         })
       })
-      .catch((error: Error) => setNotice({ kind: 'error', text: error.message }))
+      .catch((error: Error) => {
+        if (token !== loadSeq.current) return
+        setNotice({ kind: 'error', text: error.message })
+      })
   }, [sessionId, target, showExpired])
 
   useEffect(() => {

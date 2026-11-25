@@ -16,7 +16,7 @@
  * The toolbar search filters entries (pretty) or whole files (raw)
  * case-insensitively.
  */
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ConvViewProps } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { Translate } from '@deepseek-ai/dsh-client-ui-slots'
 import { MemoryQueueView } from './MemoryQueueView.tsx'
@@ -340,7 +340,11 @@ export function MemoryTabView(props: ConvViewProps & MemoryTabViewProps): JSX.El
   useEffect(() => { persistedFeatures.set(sessionId, feature) }, [feature, sessionId])
   useEffect(() => { persistedFileKeys.set(sessionId, activeKey) }, [activeKey, sessionId])
 
+  // A7（巡检）：切会话时旧请求可能后到并覆盖新会话的数据——用递增令牌丢弃过期响应。
+  const loadSeq = useRef(0)
+
   const load = useCallback((): void => {
+    const token = ++loadSeq.current
     const cacheKey = String(sessionId)
     const cached = filesCache.get(cacheKey)
     if (cached !== undefined) {
@@ -355,6 +359,7 @@ export function MemoryTabView(props: ConvViewProps & MemoryTabViewProps): JSX.El
     void api<{ files: MemoryFileRow[]; cwd: string | null; branch: string | null; branches: string[] }>(
       `/api/memory-files?sessionId=${encodeURIComponent(cacheKey)}`,
     ).then((res) => {
+      if (token !== loadSeq.current) return
       const next: FilesCache = {
         files: res.files,
         cwd: res.cwd,
@@ -368,6 +373,7 @@ export function MemoryTabView(props: ConvViewProps & MemoryTabViewProps): JSX.El
       setBranch(next.branch)
       setBranches(next.branches)
     }).catch((error: Error) => {
+      if (token !== loadSeq.current) return
       setNotice({ kind: 'error', text: error.message })
       // 有缓存时保留旧数据显示（一次刷新失败不该把已有内容清空）
       if (cached === undefined) setFiles([])

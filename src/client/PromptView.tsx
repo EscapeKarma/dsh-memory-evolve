@@ -583,9 +583,10 @@ export function PromptView(props: ConvViewProps & PromptViewProps): JSX.Element 
   }
 
   const deletePrompt = async (): Promise<void> => {
-    if (selectedId === null) return
+    if (busy || selectedId === null) return
     const text = say('deleteConfirm').replace('{name}', selected?.name ?? '')
     if (!(await confirmDialog(text))) return
+    setBusy(true)
     try {
       await api(`/memory-evolve/api/prompts/${encodeURIComponent(selectedId)}`, { method: 'DELETE' })
       setSelectedId(null)
@@ -593,6 +594,8 @@ export function PromptView(props: ConvViewProps & PromptViewProps): JSX.Element 
       await load()
     } catch (err) {
       showError(errText(err))
+    } finally {
+      setBusy(false)
     }
   }
 
@@ -676,6 +679,8 @@ export function PromptView(props: ConvViewProps & PromptViewProps): JSX.Element 
    * （会话空闲则马上唤醒）。steered=false 表示插话未送达（降级下一轮）。
    */
   const injectNow = async (promptId: string): Promise<void> => {
+    if (busy) return
+    setBusy(true)
     try {
       const data = await api<{ injection: Injection; steered: boolean }>(
         `/memory-evolve/api/prompts/${encodeURIComponent(promptId)}/inject`,
@@ -688,6 +693,8 @@ export function PromptView(props: ConvViewProps & PromptViewProps): JSX.Element 
       window.dispatchEvent(new CustomEvent('dsh-memory-evolve:badge-change'))
     } catch (err) {
       showError(errText(err))
+    } finally {
+      setBusy(false)
     }
   }
 
@@ -760,6 +767,8 @@ export function PromptView(props: ConvViewProps & PromptViewProps): JSX.Element 
   }
 
   const removeInjection = async (id: string): Promise<void> => {
+    if (busy) return
+    setBusy(true)
     try {
       await api(`/memory-evolve/api/prompts/injections/${encodeURIComponent(id)}`, { method: 'DELETE' })
       showNotice(say('stoppedInjection'))
@@ -767,6 +776,8 @@ export function PromptView(props: ConvViewProps & PromptViewProps): JSX.Element 
       window.dispatchEvent(new CustomEvent('dsh-memory-evolve:badge-change'))
     } catch (err) {
       showError(errText(err))
+    } finally {
+      setBusy(false)
     }
   }
 
@@ -789,7 +800,8 @@ export function PromptView(props: ConvViewProps & PromptViewProps): JSX.Element 
   /** 添加分类（受管列表）。**幂等**：同名已存在时不报错，提示并选中已有分类。 */
   const addCategory = async (): Promise<void> => {
     const name = newCategoryName.trim()
-    if (!name) return
+    if (!name || busy) return
+    setBusy(true)
     try {
       const data = await api<{ categories: string[]; alreadyExists: boolean }>('/memory-evolve/api/prompts/categories', {
         method: 'POST',
@@ -802,17 +814,21 @@ export function PromptView(props: ConvViewProps & PromptViewProps): JSX.Element 
       if (data.alreadyExists) showNotice(say('categoryExists').replace('{name}', name))
     } catch (err) {
       showError(errText(err))
+    } finally {
+      setBusy(false)
     }
   }
 
   /** 重命名分类：受管列表替换 + 该分类下提示词同步改名。 */
   const renameCategory = async (from: string): Promise<void> => {
     const to = renameValue.trim()
+    if (busy) return
     if (!to || to === from) {
       setRenamingCategory(null)
       setRenameValue('')
       return
     }
+    setBusy(true)
     try {
       const data = await api<{ categories: string[]; renamed: number }>(
         `/memory-evolve/api/prompts/categories/${encodeURIComponent(from)}`,
@@ -827,14 +843,18 @@ export function PromptView(props: ConvViewProps & PromptViewProps): JSX.Element 
       showNotice(`${say('categoryRenamed').replace('{from}', from).replace('{to}', to).replace('{renamed}', '')}${suffix}`)
     } catch (err) {
       showError(errText(err))
+    } finally {
+      setBusy(false)
     }
   }
 
   /** 删除分类：确认后调用 API（该分类下提示词自动移到未分类）。 */
   const removeCategory = async (name: string): Promise<void> => {
+    if (busy) return
     const count = prompts.filter((p) => p.category === name).length
     const hint = count > 0 ? say('categoryMoved').replace('{count}', String(count)) : ''
     if (!(await confirmDialog(`${say('deleteCategory')}「${name}」？${hint}`))) return
+    setBusy(true)
     try {
       const data = await api<{ removed: boolean; moved: number }>(
         `/memory-evolve/api/prompts/categories/${encodeURIComponent(name)}`,
@@ -848,6 +868,8 @@ export function PromptView(props: ConvViewProps & PromptViewProps): JSX.Element 
       showNotice(`${say('categoryDeleted').replace('{name}', name)}${moved}`)
     } catch (err) {
       showError(errText(err))
+    } finally {
+      setBusy(false)
     }
   }
 

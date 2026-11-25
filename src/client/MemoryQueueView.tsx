@@ -285,6 +285,12 @@ export function MemoryQueueView(props: MemoryQueueViewProps): JSX.Element {
     // the runtime-changeable keys, but an explicit patch keeps the payload
     // stable if the host ever adds more (static config keys are rejected by
     // the host's validateRuntimePatch).
+    // A4（巡检）：服务端只校验正整数，这里在提交前夹到 1..50——输入框被
+    // 清空/粘贴乱码时不会把「每 N 轮评审一次」变成 0 或天文数字。夹逼结果
+    // 同时回写草稿，patch 里保持 `键: draft.键` 的直通形状（配置契约测试
+    // 依赖这个形状，别把表达式塞进 patch）。
+    const safeInterval = Math.min(50, Math.max(1, Math.trunc(Number(draft.reviewInterval)) || 1))
+    if (draft.reviewInterval !== safeInterval) patchDraft({ reviewInterval: safeInterval })
     const patch: RuntimeConfig = {
       reviewEnabled: draft.reviewEnabled,
       reviewInterval: draft.reviewInterval,
@@ -691,7 +697,13 @@ export function MemoryQueueView(props: MemoryQueueViewProps): JSX.Element {
                     className="me-input"
                     min={1}
                     value={draft.reviewInterval}
-                    onChange={(event) => patchDraft({ reviewInterval: Number(event.target.value) })}
+                    onChange={(event) => {
+                      // A4（巡检）：清空输入框时 Number('') = 0，会把「每 5 轮
+                      // 评审一次」静默变成 0。输入过程中允许暂时非法，真正的
+                      // 夹逼在 saveConfig 里做（避免边输入边被改成 1）。
+                      const next = Math.trunc(Number(event.target.value))
+                      patchDraft({ reviewInterval: Number.isFinite(next) ? next : 0 })
+                    }}
                   />
                 </label>
               </div>

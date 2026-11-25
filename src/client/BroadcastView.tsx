@@ -319,13 +319,18 @@ export function BroadcastView(props: ConvViewProps & { t: Translate }): JSX.Elem
   const roomListPageItems = filteredRooms.slice((roomPage - 1) * PAGE_SIZE, roomPage * PAGE_SIZE)
 
   const deleteMessage = async (msg: Msg): Promise<void> => {
+    // A7（巡检）：写操作无防重——连点会发两次 DELETE / 踢两次人。
+    if (busy) return
     if (!(await confirmDialog(t('broadcast.message.deleteConfirm', { subject: msg.subject })))) return
+    setBusy(true)
     try {
       await fetchJson<{ ok: boolean }>(`/messages/${encodeURIComponent(msg.id)}`, { method: 'DELETE' })
       setNotice({ kind: 'ok', text: t('broadcast.message.deleted') })
       void load()
     } catch (err) {
       setNotice({ kind: 'error', text: errText(err) })
+    } finally {
+      setBusy(false)
     }
   }
 
@@ -370,7 +375,9 @@ export function BroadcastView(props: ConvViewProps & { t: Translate }): JSX.Elem
   }
 
   const kickMember = async (room: Room, member: string): Promise<void> => {
+    if (busy) return
     if (!(await confirmDialog(t('broadcast.room.kickConfirm', { member })))) return
+    setBusy(true)
     try {
       await fetchJson<{ ok: boolean }>(`/rooms/${encodeURIComponent(room.id)}/kick`, {
         method: 'POST',
@@ -381,11 +388,15 @@ export function BroadcastView(props: ConvViewProps & { t: Translate }): JSX.Elem
       setOpenRoom(null)
     } catch (err) {
       setNotice({ kind: 'error', text: errText(err) })
+    } finally {
+      setBusy(false)
     }
   }
 
   const dissolveRoom = async (room: Room): Promise<void> => {
+    if (busy) return
     if (!(await confirmDialog(t('broadcast.room.dissolveConfirm', { name: room.name })))) return
+    setBusy(true)
     try {
       const res = await fetchJson<{ ok: boolean; message?: string }>(`/rooms/${encodeURIComponent(room.id)}/dissolve`, { method: 'POST' })
       if (res.ok !== true) {
@@ -396,6 +407,8 @@ export function BroadcastView(props: ConvViewProps & { t: Translate }): JSX.Elem
       void load()
     } catch (err) {
       setNotice({ kind: 'error', text: errText(err) })
+    } finally {
+      setBusy(false)
     }
   }
 
