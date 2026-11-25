@@ -4,7 +4,7 @@ All version changes for this repository, in reverse chronological order.
 
 > [中文](CHANGELOG.md)
 
-## Unreleased
+## 2026-11-26 · v0.5.0 (security audit and hardening rounds 1-4)
 
 ### Added
 
