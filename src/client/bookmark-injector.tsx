@@ -22,7 +22,14 @@
  *   DOM 解析 seq：打星/跳转/分支统一以 **anchorKey 原文**为主锚点，seq 由
  *   宿主端按会话事件日志反查（lib/bookmarks.js resolveAnchorKey，issue #39）。
  *   老格式（node:{seq}）仍兼容（legacySeq 还原 seq 走旧路径）。
- * - user 消息没有 Branch 按钮 → 天然排除。
+ * - ⚠️ DSH 0.2.x（issue #86）起，操作区（含 Branch 按钮）**搬出了消息节点**，
+ *   改由 `TurnTailNodeView` 渲染成独立的 `<div data-turn-tail="<turn>"
+ *   data-actions-reveal=…>`，里面的按钮来自 `conversation.chat.assistant-actions`
+ *   槽。于是「按钮在轮尾节点里、锚点（anchorKey）在消息节点上」，注入器必须
+ *   按 `data-turn-tail` 的轮次号找到该轮最后一条 `assistant-step` 节点作为锚点。
+ *   旧结构（操作区仍在消息节点内）继续兼容，两条路径共用同一套注入逻辑。
+ * - user 消息没有 Branch 按钮 → 天然排除；中间轮的按钮带
+ *   `aria-disabled="true"`，只接管、不打星（与官方只渲染轮尾的语义一致）。
  *
  * 因此：**节点内有 Branch 按钮 && 按钮 aria-disabled !== 'true' = 轮尾**。
  * 中间轮不打星（与官方 turnTail 只渲染轮尾的语义一致）。
@@ -198,9 +205,15 @@ export function createBookmarkInjector(
    * 悬浮标注靠两件事：①按钮原生 title（我们的文案，浏览器原生提示）；
    * ②scan() 里隐藏被接管按钮的官方 bubble（否则官方"仅可从…"提示还在）。
    */
-  function enableForkOnTurn(node: HTMLElement): void {
-    const branch = findBranchButton(node)
-    if (branch === null) return
+  /**
+   * 接管一个 Branch 按钮（issue #86 起操作区与消息节点分离，故按钮与「用来
+   * 反查轮次/序号的锚点节点」分开传：按钮在 `[data-turn-tail]` 里，锚点节点
+   * 是该轮最后一条 assistant-step）。
+   *
+   * @param branch - 官方 Branch 按钮。
+   * @param node - 该轮最后一条 assistant 消息节点（解析 anchorKey 取轮次）。
+   */
+  function enableFork(branch: HTMLButtonElement, node: HTMLElement): void {
     // 最后一轮：官方支持，不接管。
     if (branch.getAttribute('aria-disabled') !== 'true') return
     if (branch.hasAttribute(FORK_MARK)) return // 已接管（幂等）
@@ -250,6 +263,73 @@ export function createBookmarkInjector(
     })
   }
 
+  /**
+   * 给某个轮尾锚点注入星标（幂等：已在页面上就跳过；宿主已被 React 重渲染
+   * 摘掉则先卸载旧根再重注入）。issue #86 起操作区搬进了独立的
+   * `[data-turn-tail]` 节点，所以星标挂在**那个节点里的 Branch 按钮**后面，
+   * 而锚点仍取该轮最后一条 assistant-step（宿主按 anchorKey 反查 seq）。
+   *
+   * @param anchorNode - 该轮最后一条 assistant 消息节点（提供 anchorKey）。
+   * @param branch - 该轮操作区里的 Branch 按钮（星标贴在它后面）。
+   * @param root - 扫描根。
+   */
+  function injectStar(anchorNode: HTMLElement, branch: HTMLButtonElement, root: HTMLElement): void {
+    const parsed = parseAnchorKey(anchorNode)
+    if (parsed === null) return
+    if (parsed.kind !== 'assistant-step' && parsed.legacySeq === null) return
+    const existing = mounted.get(parsed.rawKey)
+    if (existing !== undefined) {
+      if (existing.host.isConnected) return // 已注入且仍在页面上
+      // 宿主随节点重建被摘掉了：先卸载旧 React 根再重注入，避免泄漏。
+      existing.root.unmount()
+      existing.host.remove()
+      mounted.delete(parsed.rawKey)
+    }
+    const summary = extractSummary(anchorNode, root)
+    // 注入宿主容器 + React 根（星标按钮）。afterend：紧挨 Branch 按钮。
+    const host = document.createElement('div')
+    host.setAttribute(HOST_ATTR, '')
+    host.dataset.bmAnchor = parsed.rawKey
+    branch.insertAdjacentElement('afterend', host)
+    const rootNode = createRoot(host)
+    rootNode.render(
+      <TurnBookmarkButton
+        anchorKey={parsed.rawKey}
+        seq={parsed.legacySeq}
+        turn={parsed.kind === 'assistant-step' ? turnFromAnchorId(parsed.id) : null}
+        summary={summary}
+        sessionId={getSessionId}
+        t={deps.t}
+      />,
+    )
+    mounted.set(parsed.rawKey, { root: rootNode, host })
+  }
+
+  /**
+   * 从 `[data-turn-tail="<turn>"]` 里拿到轮次号（官方 TurnTailNodeView 的
+   * `data-turn-tail` 属性值就是轮次）。缺属性/非数字返回 null。
+   */
+  function turnOfTail(tail: HTMLElement): number | null {
+    const raw = tail.getAttribute('data-turn-tail')
+    if (raw === null) return null
+    const n = Number(raw)
+    return Number.isInteger(n) && n >= 1 ? n : null
+  }
+
+  /**
+   * 找到某一轮最后一条 assistant-step 锚点节点：0.2.x 起操作区与消息节点
+   * 分离，星标注入需要「按钮在 turn-tail 节点里、锚点在消息节点上」两头拼。
+   */
+  function lastAssistantAnchor(nodes: HTMLElement[], turn: number): HTMLElement | null {
+    let found: HTMLElement | null = null
+    for (const node of nodes) {
+      const parsed = parseAnchorKey(node)
+      if (parsed === null || parsed.kind !== 'assistant-step') continue
+      if (turnFromAnchorId(parsed.id) === turn) found = node
+    }
+    return found
+  }
+
   /** 扫描一次：为所有未注入的轮尾消息贴星标。 */
   function scan(): void {
     if (disposed) return
@@ -266,38 +346,39 @@ export function createBookmarkInjector(
         bubble.style.display = 'none'
       }
     }
-    const nodes = root.querySelectorAll<HTMLElement>('[data-chat-anchor-key]')
+    // 淘汰已被 React 重渲染摘掉的注入宿主（否则 mounted 表只增不减，
+    // 而且会因「已注入」跳过重注入，星标从此消失）。
+    for (const [key, entry] of mounted) {
+      if (entry.host.isConnected) continue
+      entry.root.unmount()
+      entry.host.remove()
+      mounted.delete(key)
+    }
+    const nodes = Array.from(root.querySelectorAll<HTMLElement>('[data-chat-anchor-key]'))
+    // ① 0.2.x 结构（issue #86）：消息操作区搬到独立的 `[data-turn-tail]`
+    // 节点里，Branch 按钮不在消息节点内——按 data-turn-tail 的轮次号找到
+    // 该轮最后一条 assistant-step 作为锚点，按钮与锚点分头取。
+    for (const tail of root.querySelectorAll<HTMLElement>('[data-turn-tail]')) {
+      const branch = findBranchButton(tail)
+      if (branch === null) continue
+      const turn = turnOfTail(tail)
+      if (turn === null) continue
+      const anchor = lastAssistantAnchor(nodes, turn)
+      if (anchor === null) continue
+      // 分支接管：中间轮（官方禁用）启用 + 换成我们的提示；最后一轮官方不动。
+      enableFork(branch, anchor)
+      if (branch.getAttribute('aria-disabled') === 'true') continue // 中间轮不打星
+      injectStar(anchor, branch, root)
+    }
+    // ② 兼容旧结构（Branch 按钮仍在 assistant-step 节点内）：某些内嵌场景
+    // 或旧版 DSH 里操作区没被搬走时，这条路径仍然有效。
     for (const node of nodes) {
-      // 分支接管：每个消息节点都处理（中间轮启用+接管；最后一轮官方不动）。
-      enableForkOnTurn(node)
-      // 星标注入：仅轮尾（Branch 可用）。新格式按 kind 过滤——只有
-      // assistant-step（助手消息节点）才可能带 Branch 按钮；input-message/
-      // tool-result 等直接跳过（减少无谓解析）。老格式（node:）全节点都试，
-      // 由 findTailBranch 过滤出轮尾。
       const parsed = parseAnchorKey(node)
       if (parsed === null) continue
       if (parsed.kind !== 'assistant-step' && parsed.legacySeq === null) continue
-      if (node.querySelector(`[${HOST_ATTR}]`) !== null) continue // 已注入
       const branch = findTailBranch(node)
       if (branch === null) continue // 非轮尾（user 消息 / 中间轮 / 未完成）
-      const summary = extractSummary(node, root)
-      // 注入宿主容器 + React 根（星标按钮）。afterend：紧挨 Branch 按钮。
-      const host = document.createElement('div')
-      host.setAttribute(HOST_ATTR, '')
-      host.dataset.bmAnchor = parsed.rawKey
-      branch.insertAdjacentElement('afterend', host)
-      const rootNode = createRoot(host)
-      rootNode.render(
-        <TurnBookmarkButton
-          anchorKey={parsed.rawKey}
-          seq={parsed.legacySeq}
-          turn={parsed.kind === 'assistant-step' ? turnFromAnchorId(parsed.id) : null}
-          summary={summary}
-          sessionId={getSessionId}
-          t={deps.t}
-        />,
-      )
-      mounted.set(parsed.rawKey, { root: rootNode, host })
+      injectStar(node, branch, root)
     }
   }
 
