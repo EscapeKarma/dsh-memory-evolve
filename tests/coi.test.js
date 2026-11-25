@@ -101,20 +101,28 @@ test('adapter validation rejects bad shapes', () => {
   assert.throws(() => validateAdapter({ id: 'x', name: 'X', type: 'ai-cli', binary: 'kimi', args: ['-p'], resume: { kind: 'wat' } }), /resume\.kind/)
 })
 
-test('adapter store: builtins + custom CRUD', () => {
+test('adapter store: 只允许内置适配器（自定义注册被拒，P0-2）', () => {
   const dir = tempDir()
-  const store = new AdapterStore(join(dir, 'adapters.json'))
+  const path = join(dir, 'adapters.json')
+  const store = new AdapterStore(path)
   assert.equal(store.list().length, 4)
   assert.ok(store.get('kimi'))
-  const custom = store.upsert({ id: 'my-cli', name: 'My CLI', type: 'plain-cli', binary: 'mytool', args: ['{task}'] })
-  assert.equal(custom.id, 'my-cli')
-  assert.ok(store.get('my-cli'))
-  // 持久化：新实例仍能读到
-  const again = new AdapterStore(join(dir, 'adapters.json'))
-  assert.ok(again.get('my-cli'))
+  // 自定义适配器 = 任意命令执行，运行期不再接受注册
+  assert.throws(
+    () => store.upsert({ id: 'my-cli', name: 'My CLI', type: 'plain-cli', binary: 'mytool', args: ['{task}'] }),
+    /已停止接受自定义适配器/,
+  )
+  assert.equal(store.get('my-cli'), undefined)
+  // 内置覆盖仍可用：只保留外观字段，命令面字段沿用内置定义
+  const override = store.upsert({ id: 'kimi', name: 'Kimi（我的）', binary: 'evil.exe' })
+  assert.equal(override.name, 'Kimi（我的）')
+  assert.equal(override.binary, 'kimi')
+  // 持久化：新实例仍能读到覆盖项（且不含命令面字段）
+  const again = new AdapterStore(path)
+  assert.equal(again.get('kimi').name, 'Kimi（我的）')
+  assert.equal(again.get('kimi').binary, 'kimi')
   // 内置不可删
   assert.equal(store.remove('kimi'), false)
-  assert.equal(store.remove('my-cli'), true)
   rmSync(dir, { recursive: true, force: true })
 })
 
@@ -356,8 +364,18 @@ test('scheduler: ai-cli dispatch appends output convention, plain-cli does not',
   assert.ok(argAi.includes('【输出约定】'), 'ai-cli 追加输出约定')
   assert.ok(argAi.includes('【结论】'), '约定含结论段要求')
   assert.ok(argAi.includes('绝对路径'), '约定含绝对路径要求')
-  // plain-cli（自定义普通命令）：不追加自然语言指令
-  adapters.upsert({ id: 'plain-x', name: 'Plain X', type: 'plain-cli', binary: 'echo', args: ['{task}'] })
+  // plain-cli（普通命令）：不追加自然语言指令。运行期已不接受自定义适配器，
+  // 这里直接往注册表里塞一条，只为覆盖 plain-cli 分支的派发行为。
+  adapters.byId.set('plain-x', {
+    id: 'plain-x',
+    name: 'Plain X',
+    type: 'plain-cli',
+    binary: 'echo',
+    args: ['{task}'],
+    enabled: true,
+    defaults: { timeoutMs: 60000 },
+    env: {},
+  })
   scheduler.dispatch({ adapterId: 'plain-x', prompt: 'hello' })
   const argPlain = harness.children[1].args.join(' ')
   assert.ok(!argPlain.includes('【输出约定】'), 'plain-cli 不追加输出约定')
@@ -1522,21 +1540,27 @@ test('coi api: adapter upsert + delete + test', async () => {
   const dir = tempDir()
   const api = await bootApi(dir)
   try {
-    const add = await api.request('POST', '/memory-evolve/api/coi/adapters', { def: { id: 'hello', name: 'Hello CLI', type: 'plain-cli', binary: 'hello', args: ['{task}'], skillName: 'hello-skill' }, skillContent: '# 技能正文\n告诉 AI 怎么用 hello' })
+    // 自定义适配器：直接 400（P0-2 安全收紧）
+    const custom = await api.request('POST', '/memory-evolve/api/coi/adapters', { def: { id: 'hello', name: 'Hello CLI', type: 'plain-cli', binary: 'hello', args: ['{task}'], skillName: 'hello-skill' } })
+    assert.equal(custom.status, 400)
+    assert.match(custom.data.message, /已停止接受自定义适配器/)
+    // 内置覆盖 + 自动创建技能文件（原 hello 用例改为内置 kimi）
+    const add = await api.request('POST', '/memory-evolve/api/coi/adapters', { def: { id: 'kimi', name: 'Kimi（我的）' }, skillContent: '# 技能正文\n告诉 AI 怎么用 kimi' })
     assert.equal(add.status, 200)
-    assert.equal(add.data.adapter.id, 'hello')
+    assert.equal(add.data.adapter.id, 'kimi')
+    assert.equal(add.data.adapter.name, 'Kimi（我的）')
     assert.match(add.data.skillMessage, /自动创建/)
-    assert.ok(readFileSync(join(dir, 'skills', 'hello-skill', 'SKILL.md'), 'utf8').includes('告诉 AI 怎么用 hello'))
+    assert.ok(readFileSync(join(dir, 'skills', 'kimi-cli-calling', 'SKILL.md'), 'utf8').includes('告诉 AI 怎么用 kimi'))
     // 技能已存在时不覆盖
-    const addAgain = await api.request('POST', '/memory-evolve/api/coi/adapters', { def: { id: 'hello', name: 'Hello CLI', type: 'plain-cli', binary: 'hello', args: ['{task}'], skillName: 'hello-skill' }, skillContent: '# 新内容' })
+    const addAgain = await api.request('POST', '/memory-evolve/api/coi/adapters', { def: { id: 'kimi', name: 'Kimi（我的）' }, skillContent: '# 新内容' })
     assert.match(addAgain.data.skillMessage, /已存在/)
-    assert.ok(!readFileSync(join(dir, 'skills', 'hello-skill', 'SKILL.md'), 'utf8').includes('新内容'))
+    assert.ok(!readFileSync(join(dir, 'skills', 'kimi-cli-calling', 'SKILL.md'), 'utf8').includes('新内容'))
     const bad = await api.request('POST', '/memory-evolve/api/coi/adapters', { def: { id: 'BAD ID', name: 'x', type: 'plain-cli', binary: 'x', args: ['x'] } })
     assert.equal(bad.status, 400)
     const delBuiltin = await api.request('DELETE', '/memory-evolve/api/coi/adapters/kimi')
     assert.equal(delBuiltin.data.ok, false)
     const del = await api.request('DELETE', '/memory-evolve/api/coi/adapters/hello')
-    assert.equal(del.data.ok, true)
+    assert.equal(del.data.ok, false)
     // 启用/禁用路由（回归：segments 段数曾误写 7 → 404）
     const disable = await api.request('POST', '/memory-evolve/api/coi/adapters/kimi/enabled', { enabled: false })
     assert.equal(disable.status, 200)

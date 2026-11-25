@@ -73,6 +73,9 @@ function fakeReqRes(method, url, body) {
   const req = {
     method,
     url,
+    // 同源校验（lib/http-guard.js）要求的两个字段：Host 头与 TCP 对端。
+    headers: { host: '127.0.0.1:7777' },
+    socket: { remoteAddress: '127.0.0.1' },
     async *[Symbol.asyncIterator]() {
       for (const chunk of chunks) yield chunk
     },
@@ -633,7 +636,7 @@ test('installBookmarks: POST /fork 端点走 forkSession 并回 201', async () =
   const res = { status: 0, body: '', ended: false }
   res.writeHead = (status) => { res.status = status }
   res.end = (text) => { res.body = text; res.ended = true }
-  const req = { method: 'POST', url: '/memory-evolve/api/bookmarks/fork', on: () => {} }
+  const req = { method: 'POST', url: '/memory-evolve/api/bookmarks/fork', headers: { host: '127.0.0.1:7777' }, socket: { remoteAddress: '127.0.0.1' }, on: () => {} }
   // readBody 需要 async iterator；用简单对象代替。
   req[Symbol.asyncIterator] = async function* () {
     yield Buffer.from(JSON.stringify({ sessionId: 'session-src', seq: 2 }))
@@ -667,7 +670,7 @@ test('installBookmarks: POST / 带 anchorKey 由宿主端反查 seq/turn，无�
     const res = { status: 0, body: '', ended: false }
     res.writeHead = (status) => { res.status = status }
     res.end = (text) => { res.body = text; res.ended = true }
-    const req = { method: 'POST', url: '/memory-evolve/api/bookmarks', on: () => {} }
+    const req = { method: 'POST', url: '/memory-evolve/api/bookmarks', headers: { host: '127.0.0.1:7777' }, socket: { remoteAddress: '127.0.0.1' }, on: () => {} }
     req[Symbol.asyncIterator] = async function* () { yield Buffer.from(JSON.stringify(body)) }
     await handler(req, res)
     return { status: res.status, body: JSON.parse(res.body) }

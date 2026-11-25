@@ -246,8 +246,9 @@ test('resolveAttachments: attachmentId — 无服务报错 / 有服务+会话事
 test('dispatch: 不支持的适配器（无 image 配置）带附件 → 明确报错', () => {
   const dir = tempDir()
   const { scheduler, adapters } = bootScheduler(dir)
-  // zcode 不在内置里：自定义一个无 image 配置的 ai-cli（模拟 zcode 纯文本）
-  adapters.upsert({
+  // zcode 不在内置里：自定义适配器已停止接受（2026-11-26 巡检 P0-2），
+  // 这里直接往内存表注入一个无 image 配置的 ai-cli（模拟纯文本 CLI）。
+  adapters.byId.set('zcode', {
     id: 'zcode', name: 'ZCode', type: 'ai-cli', binary: 'zcode',
     args: ['-p', '{task}'], resume: { kind: 'flag', flag: '-r', arg: '{sessionId}' },
   })

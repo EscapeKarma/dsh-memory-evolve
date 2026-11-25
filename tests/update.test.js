@@ -766,12 +766,14 @@ test('[P1-5] API 契约：POST update 同源校验（Content-Type/Origin）', as
   try {
     // 1) 非 JSON Content-Type（form 提交形态）→ 400 bad-request。
     const rForm = await request('POST', '/memory-evolve/api/update', { expectedTag: 'v1.1.0' }, { 'content-type': 'text/plain' })
-    assert.equal(rForm.status, 400)
-    assert.equal(rForm.data.code, 'bad-request')
+    // 统一入口的 CSRF 守卫先拦（2026-11-26 巡检）：非 JSON 的写请求一律 415。
+    assert.equal(rForm.status, 415)
+    assert.equal(rForm.data.code, 'GUARD_CONTENT_TYPE')
     // 2) 错误 Origin（跨站）→ 400。
     const rEvil = await request('POST', '/memory-evolve/api/update', { expectedTag: 'v9.9.9' }, { origin: 'http://evil.example' })
-    assert.equal(rEvil.status, 400)
-    assert.equal(rEvil.data.code, 'bad-request')
+    // 跨站 Origin 由守卫直接 403（原来是端点内 sameOriginGuard 的 400）。
+    assert.equal(rEvil.status, 403)
+    assert.equal(rEvil.data.code, 'GUARD_CROSS_SITE')
   } finally {
     await close()
   }
@@ -802,16 +804,17 @@ test('[P1-5] API 契约：POST 缺 Origin + 非回环对端仍被拒（CSRF 面�
     socket: { remoteAddress: '203.0.113.7' },
     body: { expectedTag: 'v1.1.0' },
   })
-  assert.equal(remote.status, 400)
-  assert.equal(remote.body.code, 'bad-request')
-  assert.match(remote.body.error, /缺少 Origin 头/)
+  assert.equal(remote.status, 403)
+  assert.equal(remote.body.code, 'GUARD_REMOTE_PEER')
+  assert.match(remote.body.error, /非本机访问/)
   // 2) transport 不提供 socket 信息且 Host 非回环 → 同样拒绝。
   const noSocket = await invokeUpdateHandler(consumer, {
     headers: { 'content-type': 'application/json', host: 'example.com' },
     body: { expectedTag: 'v1.1.0' },
   })
-  assert.equal(noSocket.status, 400)
-  assert.match(noSocket.body.error, /缺少 Origin 头/)
+  assert.equal(noSocket.status, 403)
+  assert.equal(noSocket.body.code, 'GUARD_UNTRUSTED_HOST')
+  assert.match(noSocket.body.error, /非本机访问/)
   // 3) transport 不提供 socket 信息但 Host 是回环主机 → 放行（桌面端宿主形态）。
   const loopbackHost = await invokeUpdateHandler(consumer, {
     headers: jsonHeaders,
