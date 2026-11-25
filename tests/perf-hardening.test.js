@@ -25,7 +25,7 @@ test('perf: gitBranch 直接读 .git/HEAD，分支改写后立刻反映', () => 
     writeFileSync(join(dir, 'repo', '.git', 'HEAD'), 'ref: refs/heads/main\n')
     const workdir = join(dir, 'repo')
     assert.equal(gitBranch(workdir), 'main')
-    // 切分支：只改 HEAD 文件，下一次调用必须看到新值（缓存按 mtime 失效）
+    // 切分支：只改 HEAD 文件，下一次调用必须看到新值（缓存按内容失效，不看 mtime）
     writeFileSync(join(dir, 'repo', '.git', 'HEAD'), 'ref: refs/heads/feature/x\n')
     assert.equal(gitBranch(workdir), 'feature/x')
   } finally {
