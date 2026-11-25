@@ -4,6 +4,17 @@ All version changes for this repository, in reverse chronological order.
 
 > [中文](CHANGELOG.md)
 
+## Unreleased
+
+### Fixed
+
+- **#109** `memory:snapshot` no longer injects the session title. DSH commits titles asynchronously (1–5ms after the first user message), which is always later than the first preStep snapshot assembly — so step 2 always differed and the host appended a whole extra 6–8KB runtime-context message, once per session. Alias and session ID stay; deployments that want automatic names can opt in with `snapshotSessionName: true` and accept that one-time cost.
+- **#85 / #108** Approving a skill whose name already exists in the library as a half-installed directory (no `SKILL.md`) now **merges** instead of renaming: pending-side files win on collisions, library-side data files are preserved, and the `EPERM` (Windows) / `ENOTEMPTY` (macOS) failure that left users stuck between "cannot install" and "cannot dismiss the queue item" is gone.
+
+### Docs
+
+- **#73** Restored the "track capability difference" note in the memory-consolidate skill (`archive` only supports memory/user/key; project/daily have no archive track) and bumped `x-version` 2 → 3 so already-installed copies actually receive it.
+
 ## 2026-11-25 · v0.4.0 (version page branches by install kind + read-only release check)
 
 ### Changed

@@ -4,6 +4,17 @@
 
 > [English](CHANGELOG.en.md)
 
+## 未发布
+
+### 修复
+
+- **#109** memory:snapshot 不再注入会话标题（标题是 DSH 异步提交的，必然晚于第一个 preStep 的快照组装，导致每个会话固定多一次 6–8KB 的整包 runtime-context 注入）；别名与会话 ID 保留，需要自动名称的部署可用新配置 `snapshotSessionName: true` 显式打开并接受这一次成本
+- **#85 / #108** 采纳技能时，技能库若已有同名「半装」目录（没有 SKILL.md）改为**合并安装**：待确认侧文件覆盖同名、技能库侧独有数据文件保留，不再抛 `EPERM`（Windows）/ `ENOTEMPTY`（macOS）把用户卡在「装不上也消化不掉队列项」的中间态
+
+### 文档
+
+- **#73** 补回 memory-consolidate 技能的「轨道能力差异」说明（archive 只支持 memory/user/key，project/daily 无归档能力），并把 `x-version` 2 → 3 让已装机的旧副本能同步到
+
 ## 2026-11-25 · v0.4.0（版本页按安装方式分流 + 只读发布检查）
 
 ### 变更
