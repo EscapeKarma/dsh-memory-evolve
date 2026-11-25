@@ -210,7 +210,10 @@ export function VersionTabView(props: VersionTabTabProps): JSX.Element {
       : state?.status === 'unsupported' ? 'package' : 'source'
   const release = state?.release ?? null
   const currentVersion = state?.pluginVersion ?? state?.localTag ?? null
-  const latestVersion = release?.latest ?? state?.latestTag ?? null
+  // 展示层去掉 tag 的前缀 v：用户看到的是「0.4.0」，不是「v0.4.0」。
+  // 只影响显示，不参与任何比较（比较仍用原始 tag）。
+  const latestVersionRaw = release?.latest ?? state?.latestTag ?? null
+  const latestVersion = typeof latestVersionRaw === 'string' ? latestVersionRaw.replace(/^v/i, '') : latestVersionRaw
   const releaseHasUpdate = release?.hasUpdate === true
   // 状态文案：包安装的「检测不支持」是预期行为，换成「由插件市场管理」。
   const statusText = state === null
