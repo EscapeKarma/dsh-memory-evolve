@@ -83,7 +83,7 @@ AI 侧则多出这些工具：
 
 | 工具 | 干什么 | 默认 |
 | --- | --- | --- |
-| `memory` | 五轨记忆读写、按 id 展开、归档 | 开 |
+| `memory` | 五轨记忆读写、按 id 展开、归档、`retag` 补/改摘要 | 开 |
 | `memory_suggest` | 提议写入（进待确认队列，你确认才生效） | 开 |
 | `dtodo` | 四轨待办（生活/工作/项目/每日） | 开 |
 | `skill_manage` | 技能库读写、新建/更新技能 | 开 |
@@ -276,6 +276,7 @@ AI 的对话是「一次性」的：换项目、隔几天、开新会话就忘�
 | `reviewEnabled` / `reviewInterval` | `false` / `5` | 回合内记忆审查与间隔 |
 | `reviewMode` | `suggest` | `suggest`=提议走确认队列；`auto`=直接写 |
 | `keyProgressiveDisclosure` / `memoryProgressiveDisclosure` / `userProgressiveDisclosure` | `off` | `off` 全量注入 / `auto` 小数据量全量 / `on` 始终摘要 |
+| `summaryMinChars` | `0` | 摘要模式下正文不超过该字符数的条目保持全文，更长的才折成摘要行。`0`=关闭（与旧版一致），建议 `400`（实测省约 61%）；相邻版本 0.5.0 起可用 |
 | `projectInjectMode` / `dailyInjectMode` | `off` | project / daily 日志默认不注入（每写必变，会废掉前缀缓存）；`tail:N` 注入最近 N 条、`always` 全量 |
 | `perTurnWriteGuard` / `writeGuardThreshold` | `false` / `2` | 写入看门狗：连续 N 轮没写日志就提醒 |
 | `todoEnabled` | `true` | 待办工具与 Tab |

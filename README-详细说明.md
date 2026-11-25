@@ -375,7 +375,7 @@ agent 会通过 `memory` 工具读写记忆，通过 `skill_manage` 工具管理
 
 **设置入口（v0.3.0 起）**：插件总览、运行时配置与版本更新在 DSH 全局设置面板左侧导航的「**Memory Evolve**」里（`settings.section`，id=`memory-evolve`），三个子 Tab：**指南**（整个插件 30 秒速览）/ **配置**（运行时配置，见下）/ **版本**（检测并更新）。
 
-**配置**（原「运行时配置」）：`reviewEnabled` / `reviewInterval` / `skillReviewEnabled` / `perTurnProjectWrites` / `perTurnDailyWrites` / `perTurnKeyWrites` / `searchDocsEnabled`（本地文件搜索工具开关）/ `keyProgressiveDisclosure`、`memoryProgressiveDisclosure`、`userProgressiveDisclosure`（渐进式披露）/ `projectInjectMode`、`dailyInjectMode`（v0.4.2 起：把 project / daily 日志按 `off`（默认）/ `tail:N` / `always` 注入快照，默认不注入以省缓存）等的表单修改，保存后**立即生效并持久化**（覆盖 config.yaml 对应项，重启不丢）。本地搜索 / COI 调度 / 提示词管理器 / 临时信息 / 画板 / 通知 / 会话评审的**启用开关都在这里**。
+**配置**（原「运行时配置」）：`reviewEnabled` / `reviewInterval` / `skillReviewEnabled` / `perTurnProjectWrites` / `perTurnDailyWrites` / `perTurnKeyWrites` / `searchDocsEnabled`（本地文件搜索工具开关）/ `keyProgressiveDisclosure`、`memoryProgressiveDisclosure`、`userProgressiveDisclosure`（渐进式披露）/ `summaryMinChars`（v0.5.0 起：摘要模式下按条目长度折叠，0 关闭、建议 400）/ `projectInjectMode`、`dailyInjectMode`（v0.4.2 起：把 project / daily 日志按 `off`（默认）/ `tail:N` / `always` 注入快照，默认不注入以省缓存）等的表单修改，保存后**立即生效并持久化**（覆盖 config.yaml 对应项，重启不丢）。本地搜索 / COI 调度 / 提示词管理器 / 临时信息 / 画板 / 通知 / 会话评审的**启用开关都在这里**。
 
 **版本（v0.4.0 起按安装方式分流）**：页面先显示**安装方式**（`git clone` = 源码 / 市场与 `dsh plugin add` = 包）与当前版本号。
 

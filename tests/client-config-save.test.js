@@ -55,6 +55,7 @@ const PANEL_KEYS = [
   'userProgressiveDisclosure',
   'projectInjectMode',
   'dailyInjectMode',
+  'summaryMinChars',
 ]
 
 /** 截取 saveConfig 里 `const patch = { ... }` 那一段。 */

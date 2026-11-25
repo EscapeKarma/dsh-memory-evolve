@@ -4,6 +4,16 @@ All version changes for this repository, in reverse chronological order.
 
 > [中文](CHANGELOG.md)
 
+## Unreleased
+
+### Added
+
+- **Progressive disclosure v2 (#66 block A)**: `memory`'s `summary` parameter now covers the memory / user / key tracks (log tracks ignore it); summary sanitising and the 120-character cap live in one place; new `summaryMinChars` keeps short entries fully injected in summary mode and folds only long ones (default 0 = off, 400 recommended, ~61% measured saving); new `memory` action `retag` rewrites summary metadata only, never the body or the entry id.
+
+### Tests
+
+- New `tests/summary-v2.test.js` (9 cases). Full suite: 1047 tests / 1046 pass / 0 fail / 1 skipped.
+
 ## 2026-11-25 · v0.4.3 (P3: COI retries keep content, session-scoped isolation)
 
 ### Fixed

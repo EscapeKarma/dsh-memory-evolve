@@ -135,6 +135,7 @@ interface RuntimeConfig {
   /** 全局轨 memory 渐进式披露：auto（条数≤20 且字符≤8000 才全量）/ off（始终全量，默认）/ on（始终摘要）。
    *  MEMORY.md 是全量注入的最大头（实测 on 可省约 60% 上下文）。 */
   memoryProgressiveDisclosure: 'auto' | 'off' | 'on'
+  summaryMinChars?: number
   /** 全局轨 user 渐进式披露：同上。user 轨条目短、摘要收益小（实测约省 500 字符），一般保持 off。 */
   userProgressiveDisclosure: 'auto' | 'off' | 'on'
   /** #103 project 轨注入：off（默认，不注入，缓存最省）/ tail:N（只注入最近 N 条）/ always（全量）。
@@ -312,6 +313,7 @@ export function MemoryQueueView(props: MemoryQueueViewProps): JSX.Element {
       keyFullInjectThreshold: draft.keyFullInjectThreshold,
       keyFullInjectCharLimit: draft.keyFullInjectCharLimit,
       memoryProgressiveDisclosure: draft.memoryProgressiveDisclosure,
+      summaryMinChars: draft.summaryMinChars ?? 0,
       userProgressiveDisclosure: draft.userProgressiveDisclosure,
       projectInjectMode: draft.projectInjectMode,
       dailyInjectMode: draft.dailyInjectMode,
@@ -822,6 +824,23 @@ export function MemoryQueueView(props: MemoryQueueViewProps): JSX.Element {
                     <option value="auto">{t('panel.config.userProgressiveDisclosure.auto')}</option>
                     <option value="off">{t('panel.config.userProgressiveDisclosure.off')}</option>
                     <option value="on">{t('panel.config.userProgressiveDisclosure.on')}</option>
+                  </select>
+                </label>
+                {/* 摘要模式下按条目长度折叠（v2）：短条目保持全文，长条目折成摘要行 */}
+                <label className="me-field">
+                  <span className="me-field-label">
+                    {t('panel.config.summaryMinChars')}
+                    <em className="me-field-hint">{t('panel.config.summaryMinChars.hint')}</em>
+                  </span>
+                  <select
+                    className="me-todo-select"
+                    value={String(draft.summaryMinChars ?? 0)}
+                    onChange={(event) => patchDraft({ summaryMinChars: Number(event.target.value) })}
+                  >
+                    <option value="0">{t('panel.config.summaryMinChars.off')}</option>
+                    <option value="200">200</option>
+                    <option value="400">400</option>
+                    <option value="800">800</option>
                   </select>
                 </label>
                 {/* #103 轨道级注入：project / daily 默认不注入（每次写入都变，会废掉缓存） */}
