@@ -64,5 +64,8 @@
   },
   "devDependencies": {
     "esbuild": "0.28.1"
+  },
+  "engines": {
+    "dsh": ">=0.2.2-rc.5"
   }
 }

@@ -4,6 +4,22 @@ All version changes for this repository, in reverse chronological order.
 
 > [中文](CHANGELOG.md)
 
+## Unreleased
+
+### Fixed (P3 group A: data correctness)
+
+- **No more cross-midnight date skew**: one write now takes "which day file" and "what timestamp" from a single instant (previously two independent clock reads; a 23:59:59 write could land in yesterday's file stamped 00:00).
+- **CRLF files are no longer permanently read-only**: `\r\n` is normalised on read, so a memory file rewritten with CRLF by a Windows editor or sync tool no longer makes every `replace` fail the drift guard.
+- **Drift backups keep the newest 5 only**: `<file>.bak.<timestamp>` used to be written on every drift with no cleanup; older backups are now pruned.
+- **Per-file soft cap** (`maxEntriesPerFile`, default 2000): writes still succeed past it, but the result carries a hint suggesting `archive` — **no old entry is ever deleted automatically**.
+- **Ranking index cache key covers the whole corpus**: it used to be "entry count + total chars + first/last snippet", so two corpora differing only in the middle collided and scored against the wrong index; it is now a 32-bit hash over the full text.
+- **Stable head-tag order**: `replace` restores `[branch:…]` / `[dsh-only]` / `[summary:…]` in a fixed order instead of whatever the write path produced.
+- **`engines.dsh` pinned to `>=0.2.2-rc.5`** (marketplace requirement): only 0.2.2-rc.5 is verified, so older hosts refuse to install instead of running against unknown API differences.
+
+### Tests
+
+- New `tests/store-hardening-a.test.js` (7 cases: injected-clock midnight consistency, CRLF round-trip, backup retention, soft-cap hint, index cache key, head-tag order); `tests/package-manifest.test.js` now asserts `engines.dsh`. Full suite: 1093 tests / 1092 pass / 0 fail / 1 skipped.
+
 ## 2026-11-26 · v0.5.0 (security audit and hardening rounds 1-4)
 
 ### Added

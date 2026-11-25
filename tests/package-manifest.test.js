@@ -142,3 +142,11 @@ test('package.json：清单标题/描述非空（市场列表直接展示它们�
   assert.ok(String(manifest.description ?? '').length > 20)
   assert.equal(manifest.private, undefined, 'private:true 会让发布工具拒绝打包，必须去掉')
 })
+
+test('package.json：engines.dsh 限定最低可用 DSH 版本（市场准入要求）', () => {
+  // 本插件用到的 Cordis / 宿主 API 只在 0.2.2-rc.5 上验证过；范围写成
+  // ">=0.2.2-rc.5"（不用 ^，避免把未来的 0.3.x 挡在门外）。DSH 侧用
+  // semver.satisfies(..., { includePrerelease: true }) 比较，预发布可生效。
+  assert.equal(typeof manifest.engines, 'object')
+  assert.equal(manifest.engines.dsh, '>=0.2.2-rc.5')
+})
