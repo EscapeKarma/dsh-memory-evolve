@@ -4,7 +4,7 @@ All version changes for this repository, in reverse chronological order.
 
 > [中文](CHANGELOG.md)
 
-## Unreleased
+## 2026-11-25 · v0.4.0 (version page branches by install kind + read-only release check)
 
 ### Changed
 
