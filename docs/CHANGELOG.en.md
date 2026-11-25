@@ -10,6 +10,14 @@ All version changes for this repository, in reverse chronological order.
 
 - **Progressive disclosure v2 (#66 block A)**: `memory`'s `summary` parameter now covers the memory / user / key tracks (log tracks ignore it); summary sanitising and the 120-character cap live in one place; new `summaryMinChars` keeps short entries fully injected in summary mode and folds only long ones (default 0 = off, 400 recommended, ~61% measured saving); new `memory` action `retag` rewrites summary metadata only, never the body or the entry id.
 
+### Fixed
+
+- The `es` search provider reported "rg does not support directory search" for directory/all queries — now names the right provider and the fallback.
+
+### Docs
+
+- New `docs/不采纳的社区提案.md` (rejected-proposal log): why #72 (Jev auto-approval) is not adopted, why #66's block C keeps only the es.exe fallback chain instead of the Everything IPC + PowerShell path, and that #65 / #82 are already covered.
+
 ### Tests
 
 - New `tests/summary-v2.test.js` (9 cases). Full suite: 1047 tests / 1046 pass / 0 fail / 1 skipped.
