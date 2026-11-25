@@ -187,13 +187,16 @@ test('runtime review toggle keeps the paired tools and snapshot atomic', async (
     // A persistence failure happens after successful tool staging. It must
     // restore the old pair and leave the same mixed patch wholly uncommitted.
     ctx.state.failReviewStatusRegistration = false
-    const blockedTemp = `${stateFile}.tmp.${process.pid}`
-    mkdirSync(blockedTemp)
+    // 持久化失败注入：临时名现在是「pid + 随机后缀」（巡检 B5），没法预先占位；
+    // 改为把目标路径本身换成目录——rename 覆盖目录必然失败。
+    rmSync(stateFile, { force: true })
+    mkdirSync(stateFile)
     let persistFailed
     try {
       persistFailed = await api.patch({ reviewEnabled: true, searchDocsEnabled: true })
     } finally {
-      rmSync(blockedTemp, { recursive: true, force: true })
+      rmSync(stateFile, { recursive: true, force: true })
+      writeFileSync(stateFile, `${JSON.stringify(initialState, null, 2)}\n`)
     }
     assert.equal(persistFailed.status, 400)
     assertReviewSurface(ctx, dir, false)

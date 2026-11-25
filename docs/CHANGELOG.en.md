@@ -4,6 +4,21 @@ All version changes for this repository, in reverse chronological order.
 
 > [中文](CHANGELOG.md)
 
+## Unreleased
+
+### Fixed (P3 group B: stability)
+
+- **Every whole-table write is now atomic**: `aliases.json`, `PROVENANCE`, `plugin-state.json`, bookmarks, model catalog, notifications, canvas `boards.json` and the search cache go through "unique temp file → fsync → rename" (new `lib/atomic-write.js`). Temp names used to carry only the pid, so two concurrent writes in one process could clobber each other.
+- **Half-installed skill directories are backed up before merging**: the destination is copied to `<dir>.bak.<timestamp>` (newest 3 kept) before files are overwritten.
+- **Migration / id backfill no longer follows symlinks**: `lstat` decides, so a link pointing outside the memory dir cannot redirect writes.
+- **External commands are killed as a process tree on timeout**: `rg` / `es` grandchildren no longer survive on Windows (`taskkill /T`), so scheduled searches stop accumulating orphans.
+- **Session-state maps are bounded**: the review turn counter and the write-gap counter evict oldest entries past 500, so a long-running process no longer grows without limit.
+- **Test adaptation**: the persistence-failure injection in `tests/review-tool-lifecycle.test.js` now turns the target path into a directory instead of pre-occupying a temp name (temp names are pid + random suffix now), which keeps the test implementation-agnostic.
+
+### Tests
+
+- New `tests/hardening-b.test.js` (5 cases). Full suite: 1098 tests / 1097 pass / 0 fail / 1 skipped.
+
 ## 2026-11-26 · v0.5.1 (P3 group A: data correctness)
 
 ### Fixed (P3 group A: data correctness)
