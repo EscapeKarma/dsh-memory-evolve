@@ -1127,7 +1127,9 @@ test('de_prompts tool: promptsEnabled 开关注册/注销，list/get/inject 与�
   const tool = ctx.state.tools.find((t) => t.name === 'de_prompts')
   assert.ok(tool, 'promptsEnabled=true 时注册 de_prompts')
   assertValidOutputSchema(tool.output.schema)
-  const exec = () => ({ agent: { session: { header: { cwd: '/proj/x' } } }, callId: 'c1', signal: new AbortController().signal })
+  // #47 起注入记录归属会话：exec 必须带 session.id，否则注入被拒绝（
+  // 缺查看者身份时既不返回也不写入别人的会话）
+  const exec = () => ({ agent: { session: { id: 'prompt-sess', header: { cwd: '/proj/x' } } }, callId: 'c1', signal: new AbortController().signal })
 
   // list：seed 13 条全启用，含 id/名称/简介/分类/标签、不含正文
   const listed = await tool.execute({ action: 'list' }, exec())
