@@ -4,6 +4,19 @@ All version changes for this repository, in reverse chronological order.
 
 > [中文](CHANGELOG.md)
 
+## Unreleased
+
+### Fixed (P3 group C: frontend stability)
+
+- **COI "retry" is guarded against double clicks**: the button is disabled until the request returns, so rapid clicks no longer spawn several retry tasks.
+- **Bookmark jumps no longer break on special anchor content**: when `data-chat-anchor-key` contained quotes or brackets, the old code interpolated the key into a CSS selector and threw `SyntaxError`, killing every bookmark jump in the page; it now walks candidate nodes and compares `dataset` instead.
+- **Stale responses are dropped after switching session / page / search**: COI task list and task detail requests carry an incrementing token, so late replies no longer overwrite what the new session just rendered.
+- **Feature-switch save failures are no longer silent**: when browser storage is unavailable or full, a switch only lasts for the current session — the panel now says so instead of pretending the change was saved.
+
+### Tests
+
+- New `tests/client-p3c.test.js` (7 cases, static contracts on both source and built bundle).
+
 ## 2026-11-26 · v0.5.2 (P3 group B: stability)
 
 ### Fixed (P3 group B: stability)

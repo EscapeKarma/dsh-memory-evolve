@@ -727,6 +727,11 @@ function TasksPane({ dsSessionId }: { dsSessionId?: string }): JSX.Element {
   const [total, setTotal] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<Notice | null>(null)
+  // 「重试」按钮的防重：同一任务在请求返回前不允许再点（否则会连开多个重试任务）。
+  const [retrying, setRetrying] = useState(false)
+  // 请求令牌：切会话 / 切页 / 改搜索词后丢弃过期响应（P3 C3）。
+  const tasksSeq = useRef(0)
+  const detailSeq = useRef(0)
 
   // 发起表单
   const [adapterId, setAdapterId] = useState('kimi')
@@ -761,9 +766,13 @@ function TasksPane({ dsSessionId }: { dsSessionId?: string }): JSX.Element {
   }, [selectedId])
 
   const loadTasks = useCallback(async (): Promise<void> => {
+    // 切会话 / 切页 / 改搜索词时，上一轮请求可能还没回来：用递增令牌丢弃过期
+    // 响应，否则旧会话的列表（或旧页码的数据）会覆盖新会话刚渲染的内容。
+    const token = ++tasksSeq.current
     try {
       const q = searchQ.trim()
       const data = await fetchJson<{ tasks: CoiTask[]; total: number }>(`/tasks?page=${page}&pageSize=${TASK_LIMIT}${visQs}${q !== '' ? `&q=${encodeURIComponent(q)}` : ''}`)
+      if (token !== tasksSeq.current) return
       // 页码越界保护：当前页已无数据但总数 > 0（如删除了本页任务）→ 自动跳回最后一页
       if (data.tasks.length === 0 && data.total > 0 && page > 1) {
         setPage(Math.max(1, Math.ceil(data.total / TASK_LIMIT)))
@@ -778,8 +787,10 @@ function TasksPane({ dsSessionId }: { dsSessionId?: string }): JSX.Element {
   }, [searchQ, page, visQs])
 
   const loadDetail = useCallback(async (id: string): Promise<void> => {
+    const token = ++detailSeq.current
     try {
       const data = await fetchJson<{ ok: boolean; task: CoiTask }>(`/tasks/${encodeURIComponent(id)}${detailQs}`)
+      if (token !== detailSeq.current) return
       setDetail(data.task)
     } catch (err) {
       setNotice({ kind: 'error', text: errText(err) })
@@ -947,13 +958,16 @@ function TasksPane({ dsSessionId }: { dsSessionId?: string }): JSX.Element {
   }
 
   const retry = async (): Promise<void> => {
-    if (detail === null) return
+    if (detail === null || retrying) return
+    setRetrying(true)
     try {
       const res = await postJson<{ ok: boolean; taskId?: string; message?: string }>(`/tasks/${encodeURIComponent(detail.id)}/retry`, { dsSessionId: dsSessionId ?? '' })
       setNotice({ kind: 'ok', text: res.message ?? `${t('tasks.retried')}${res.taskId !== undefined ? `：${res.taskId}` : ''}` })
       void loadTasks()
     } catch (err) {
       setNotice({ kind: 'error', text: errText(err) })
+    } finally {
+      setRetrying(false)
     }
   }
 
@@ -1233,7 +1247,7 @@ function TasksPane({ dsSessionId }: { dsSessionId?: string }): JSX.Element {
                   </button>
                 )}
                 {!running && (
-                  <button type="button" className="coi-btn" onClick={() => void retry()}>
+                  <button type="button" className="coi-btn" disabled={retrying} onClick={() => void retry()}>
                     ↻ {t('tasks.retry')}
                   </button>
                 )}

@@ -53,10 +53,20 @@ export function readFeatures(): UiSettingsFeatures {
   return { ...DEFAULTS }
 }
 
-/** 保存功能开关并广播变更事件（index.ts 监听后同步注入）。 */
-export function writeFeatures(features: UiSettingsFeatures): void {
+/**
+ * 保存功能开关并广播变更事件（index.ts 监听后同步注入）。
+ *
+ * 返回值表示**是否真的落盘**：localStorage 不可用（隐私模式）或配额已满时，
+ * 开关只能本次会话内生效，下次打开会回退——调用方需要把这件事告诉用户，
+ * 不能静默失败（P3 C4）。
+ */
+export function writeFeatures(features: UiSettingsFeatures): boolean {
+  let persisted = true
   try {
     localStorage.setItem(FEATURES_KEY, JSON.stringify(features))
-  } catch { /* localStorage 不可用时仅本次会话内生效 */ }
+  } catch {
+    persisted = false
+  }
   window.dispatchEvent(new CustomEvent<UiSettingsFeatures>(FEATURES_EVENT, { detail: { ...features } }))
+  return persisted
 }

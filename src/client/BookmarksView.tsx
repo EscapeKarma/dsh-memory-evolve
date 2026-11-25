@@ -116,19 +116,36 @@ function clickLoadOlder(): boolean {
 }
 
 /**
+ * 按锚点 key 找 DOM 节点。
+ *
+ * 不能把 key 插值进属性选择器：key 是宿主给的消息锚点原文，可能含
+ * 引号、方括号等 CSS 元字符，拼进选择器会抛 SyntaxError（整页书签跳转全废）。
+ * 这里改成「取全部候选再比 dataset 字符串」，与 key 内容无关。
+ * @param key - 锚点原文。
+ * @returns 命中的元素或 null。
+ */
+function findAnchorNode(key: string): HTMLElement | null {
+  const nodes = document.querySelectorAll<HTMLElement>('[data-chat-anchor-key]')
+  for (const node of nodes) {
+    if (node.dataset.chatAnchorKey === key) return node
+  }
+  return null
+}
+
+/**
  * 等待 DOM 中出现锚点，或超时。
  * @param key - data-chat-anchor-key 原文（新式）或 `node:{seq}`（旧式回退）。
  * @param timeoutMs - 最长等待。
  * @returns 找到的元素或 null。
  */
 function waitForAnchor(key: string, timeoutMs = 2500): Promise<HTMLElement | null> {
-  const existing = document.querySelector<HTMLElement>(`[data-chat-anchor-key="${key}"]`)
+  const existing = findAnchorNode(key)
   if (existing !== null) return Promise.resolve(existing)
 
   return new Promise((resolve) => {
     const started = Date.now()
     const timer = window.setInterval(() => {
-      const el = document.querySelector<HTMLElement>(`[data-chat-anchor-key="${key}"]`)
+      const el = findAnchorNode(key)
       if (el !== null) {
         window.clearInterval(timer)
         resolve(el)

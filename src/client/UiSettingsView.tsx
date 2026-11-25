@@ -63,6 +63,8 @@ export function UiSettingsTabView(props: ConvViewProps & UiSettingsTabViewProps)
   const [feature, setFeature] = useState<UiSettingsFeature>(persistedUiSettingsFeature ?? 'mixed')
   /** 功能开关状态（初始化自 localStorage；切换即保存 + 广播事件）。 */
   const [features, setFeatures] = useState<UiSettingsFeatures>(() => readFeatures())
+  /** 保存失败提示（localStorage 不可用 / 配额满时置位，P3 C4）。 */
+  const [saveFailed, setSaveFailed] = useState(false)
 
   // 同步子 tab 选择到模块级：重挂后恢复。
   useEffect(() => { persistedUiSettingsFeature = feature }, [feature])
@@ -71,7 +73,8 @@ export function UiSettingsTabView(props: ConvViewProps & UiSettingsTabViewProps)
   const toggleFeature = (key: keyof UiSettingsFeatures, checked: boolean): void => {
     setFeatures((prev) => {
       const next = { ...prev, [key]: checked }
-      writeFeatures(next)
+      // writeFeatures 返回是否真的落盘：失败时开关只本次会话内生效，必须提示。
+      setSaveFailed(!writeFeatures(next))
       return next
     })
   }
@@ -83,6 +86,9 @@ export function UiSettingsTabView(props: ConvViewProps & UiSettingsTabViewProps)
         <h3 className="me-heading">{t('uiSettingsTab.features.title')}</h3>
       </div>
       <p className="me-help">{t('uiSettingsTab.features.help')}</p>
+      {saveFailed && (
+        <p className="me-notice me-notice-warn" role="status">{t('uiSettingsTab.saveFailed')}</p>
+      )}
       <div className="me-form">
         <div className="me-group">
           <FeatureSwitchRow
