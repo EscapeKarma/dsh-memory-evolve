@@ -4,7 +4,7 @@ All version changes for this repository, in reverse chronological order.
 
 > [中文](CHANGELOG.md)
 
-## Unreleased
+## 2026-11-26 · v0.6.0 (P3 group C: frontend stability)
 
 ### Fixed (P3 group C: frontend stability)
 
