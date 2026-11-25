@@ -204,7 +204,7 @@ test('runGit：超时终止真实进程树（子进程 + 孙进程一并清掉�
   // 活着并持有 stdout/stderr 管道——正是 git → git-remote-https 的形态。
   const script = [
     "const { spawn } = require('node:child_process')",
-    "const kid = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 60000)'], { stdio: ['ignore', 'inherit', 'inherit'] })",
+    "const kid = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 60000)'], { stdio: ['ignore', 'inherit', 'inherit'], windowsHide: true })",
     "process.stdout.write('GRANDCHILD=' + kid.pid + '\\n')",
     'setTimeout(() => {}, 60000)',
   ].join('\n')
