@@ -24,7 +24,7 @@ import {
   getLocale,
   translate,
 } from '../lib/i18n.js'
-import { MemoryStore } from '../lib/store.js'
+import { MemoryStore, todayStamp } from '../lib/store.js'
 import { memoryTool, renderSnapshot, resolveConfig } from '../lib/index.js'
 import { reviewStatusTool, suggestToolDefinition, reviewTurnCounter } from '../lib/review.js'
 import { todoToolDefinition, TodoStore } from '../lib/todo.js'
@@ -150,14 +150,14 @@ test('feedback line renders in both locales', async () => {
     { action: 'add', target: 'daily', content: 'shipped the parser', feedback: { sentiment: 'positive', category: 'Coding/Backend', quote: 'great work!', note: 'clean fix' } },
     fakeExec(),
   )
-  const daily = readFileSync(join(config.memoryDir, `daily/${new Date().toISOString().slice(0, 10)}.md`), 'utf8')
+  const daily = readFileSync(join(config.memoryDir, `daily/${todayStamp()}.md`), 'utf8')
   assert.ok(daily.includes('[Feedback]sentiment:positive | category:Coding/Backend | quote:"great work!" | note:clean fix'), daily)
   setLocale('zh')
   await tool.execute(
     { action: 'add', target: 'daily', content: 'hoàn tất parser', feedback: { sentiment: 'negative', category: '编程/后端' } },
     fakeExec(),
   )
-  const dailyZh = readFileSync(join(config.memoryDir, `daily/${new Date().toISOString().slice(0, 10)}.md`), 'utf8')
+  const dailyZh = readFileSync(join(config.memoryDir, `daily/${todayStamp()}.md`), 'utf8')
   assert.ok(dailyZh.includes('【反馈】情绪:负面 | 分类:编程/后端'), dailyZh)
   clean(dir)
 })

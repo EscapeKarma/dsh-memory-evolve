@@ -65,7 +65,8 @@ function installFakeSpawn() {
 /** 打开命令的期望可执行名（与 openNodePath 平台分支一致）。 */
 function openCommand() {
   if (process.platform === 'darwin') return 'open'
-  if (process.platform === 'win32') return 'cmd'
+  // Windows 上不再经 cmd 解析（巡检 P1-2）：直接用 explorer.exe
+  if (process.platform === 'win32') return 'explorer.exe'
   return 'xdg-open'
 }
 
