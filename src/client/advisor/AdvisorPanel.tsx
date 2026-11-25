@@ -7,6 +7,7 @@
  */
 import { Component, useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
+import { confirmDialog } from '../dialog.tsx'
 import type { PropsRuntime, Translate } from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import {
@@ -672,8 +673,9 @@ export function AdvisorPanel({ store, snapshot, onCollapse }: AdvisorPanelProps)
         type="button"
         className="advisor-new-conversation"
         disabled={snapshot.instructionMutating}
-        onClick={() => {
-        if (window.confirm('新建评审会话将清空评审员的全部上下文与记忆（评审员从零开始）。\n确认后可在第一条指令中告知背景信息。')) {
+        onClick={async () => {
+        // 页面内确认框（不用原生 confirm：关掉会丢键盘焦点，issue #88）。
+        if (await confirmDialog('新建评审会话将清空评审员的全部上下文与记忆（评审员从零开始）。\n确认后可在第一条指令中告知背景信息。')) {
         void store.resetConversation()
         }
         }}

@@ -36,6 +36,7 @@ import { PromptView } from './PromptView.tsx'
 import { BookmarksView } from './BookmarksView.tsx'
 import { SyncView } from './SyncView.tsx'
 import { createBookmarkInjector } from './bookmark-injector.tsx'
+import { setDialogLabels } from './dialog.tsx'
 import { registerCanvasTab } from './canvas-grok/index.ts'
 import { createSessionFilter } from './session-filter.ts'
 import { createWideBubble, createWideChat } from './wide-chat.ts'
@@ -884,6 +885,8 @@ export const zh = {
   'notify.readAll': '全部已读',
   'notify.system': '系统',
   'notify.jump': '跳转到会话',
+  'dialog.ok': '确定',
+  'dialog.cancel': '取消',
   'notify.delete': '删除',
   'notify.viewDetail': '查看详情',
   'notify.close': '关闭',
@@ -1730,6 +1733,8 @@ export const en: Record<MemoryEvolveKey, string> = {
   'notify.readAll': 'Mark all read',
   'notify.system': 'System',
   'notify.jump': 'Jump to session',
+  'dialog.ok': 'OK',
+  'dialog.cancel': 'Cancel',
   'notify.delete': 'Delete',
   'notify.viewDetail': 'View details',
   'notify.close': 'Close',
@@ -1832,6 +1837,9 @@ export function apply(ctx: Context): void {
   // 的 ensureStyles() 同款。
 
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'memory-evolve: dictionaries')
+
+  // 页面内确认框/提示框的按钮文案跟随语言（替代原生 confirm/alert，issue #88）。
+  setDialogLabels({ ok: t('dialog.ok'), cancel: t('dialog.cancel') })
 
   ctx.effect(() => {
     if (typeof document === 'undefined') return () => {}

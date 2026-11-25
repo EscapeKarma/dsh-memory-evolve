@@ -16,6 +16,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ConvViewProps } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { Translate } from '@deepseek-ai/dsh-client-ui-slots'
 import { TabGuideView } from './TabGuideView.tsx'
+import { alertDialog, confirmDialog } from './dialog'
 
 /** 提示词条目（与 host 端 PromptStore 一致）。 */
 interface Prompt {
@@ -583,7 +584,7 @@ export function PromptView(props: ConvViewProps & PromptViewProps): JSX.Element 
   const deletePrompt = async (): Promise<void> => {
     if (selectedId === null) return
     const text = say('deleteConfirm').replace('{name}', selected?.name ?? '')
-    if (!window.confirm(text)) return
+    if (!(await confirmDialog(text))) return
     try {
       await api(`/memory-evolve/api/prompts/${encodeURIComponent(selectedId)}`, { method: 'DELETE' })
       setSelectedId(null)
@@ -832,7 +833,7 @@ export function PromptView(props: ConvViewProps & PromptViewProps): JSX.Element 
   const removeCategory = async (name: string): Promise<void> => {
     const count = prompts.filter((p) => p.category === name).length
     const hint = count > 0 ? say('categoryMoved').replace('{count}', String(count)) : ''
-    if (!window.confirm(`${say('deleteCategory')}「${name}」？${hint}`)) return
+    if (!(await confirmDialog(`${say('deleteCategory')}「${name}」？${hint}`))) return
     try {
       const data = await api<{ removed: boolean; moved: number }>(
         `/memory-evolve/api/prompts/categories/${encodeURIComponent(name)}`,

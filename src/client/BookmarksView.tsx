@@ -18,6 +18,7 @@ import { useCallback, useEffect, useState } from 'react'
 import type { ConvViewProps } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { Translate } from '@deepseek-ai/dsh-client-ui-slots'
 import { TabGuideView, type GuideSection } from './TabGuideView.tsx'
+import { alertDialog, confirmDialog } from './dialog'
 
 /** 宿主返回的书签形状。 */
 interface Bookmark {
@@ -265,8 +266,8 @@ export function BookmarksView(props: ConvViewProps & BookmarksViewProps): JSX.El
       .finally(() => setBusy(false))
   }
 
-  const onDelete = (bm: Bookmark): void => {
-    if (!window.confirm(t('bookmark.confirm.delete', { label: bm.label }))) return
+  const onDelete = async (bm: Bookmark): Promise<void> => {
+    if (!(await confirmDialog(t('bookmark.confirm.delete', { label: bm.label })))) return
     setBusy(true)
     void api<{ ok: boolean }>('', {
       method: 'DELETE',
@@ -283,8 +284,8 @@ export function BookmarksView(props: ConvViewProps & BookmarksViewProps): JSX.El
   }
 
   /** 从此书签的轮次创建官方分支会话（用户拍板本期实现）。 */
-  const onFork = (bm: Bookmark): void => {
-    if (!window.confirm(t('bookmark.fork.confirm', { n: String(bm.turn ?? bm.seq) }))) return
+  const onFork = async (bm: Bookmark): Promise<void> => {
+    if (!(await confirmDialog(t('bookmark.fork.confirm', { n: String(bm.turn ?? bm.seq) })))) return
     setBusy(true)
     setNotice({ kind: 'info', text: t('bookmark.fork.working') })
     void fetch('/memory-evolve/api/bookmarks/fork', {

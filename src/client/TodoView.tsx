@@ -12,6 +12,7 @@
 import { Fragment, useCallback, useEffect, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import type { Translate } from '@deepseek-ai/dsh-client-ui-slots'
+import { alertDialog, confirmDialog } from './dialog'
 
 /** 四条待办轨。 */
 type TodoTarget = 'life' | 'work' | 'project' | 'daily'
@@ -260,10 +261,10 @@ export function TodoView(props: TodoViewProps): JSX.Element {
   }
 
   /** 删除（确认后；列表与看板共用）。 */
-  const removeTodo = (item: TodoItem): void => {
+  const removeTodo = async (item: TodoItem): Promise<void> => {
     if (busy) return
     const snippet = item.text.split('\n')[0].slice(0, 40)
-    if (!window.confirm(t('todo.deleteConfirm', { snippet }))) return
+    if (!(await confirmDialog(t('todo.deleteConfirm', { snippet })))) return
     setBusy(true)
     void api<{ ok: boolean }>('/api/todo', {
       method: 'POST',

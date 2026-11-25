@@ -20,6 +20,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Translate } from '@deepseek-ai/dsh-client-ui-slots'
+import { alertDialog, confirmDialog } from './dialog'
 
 /** 单条书签（与宿主 API 对齐的最小字段）。 */
 interface BookmarkRow {
@@ -106,7 +107,7 @@ export function TurnBookmarkButton(props: TurnBookmarkButtonProps): JSX.Element 
   const createOrRename = (mode: 'create' | 'rename'): void => {
     const sessionId = resolveSessionId(props.sessionId)
     if (!sessionId) {
-      window.alert(t('bookmark.error', { message: t('bookmark.noSession') }))
+      void alertDialog(t('bookmark.error', { message: t('bookmark.noSession') }))
       return
     }
     const initial = mode === 'rename' && bookmark !== null ? bookmark.label : defaultLabel
@@ -136,7 +137,7 @@ export function TurnBookmarkButton(props: TurnBookmarkButtonProps): JSX.Element 
           window.dispatchEvent(new CustomEvent('dsh-memory-evolve:bookmarks-change'))
         })
         .catch((error: Error) => {
-          window.alert(t('bookmark.error', { message: error.message }))
+          void alertDialog(t('bookmark.error', { message: error.message }))
         })
         .finally(() => setBusy(false))
     } else if (bookmark !== null) {
@@ -154,7 +155,7 @@ export function TurnBookmarkButton(props: TurnBookmarkButtonProps): JSX.Element 
           window.dispatchEvent(new CustomEvent('dsh-memory-evolve:bookmarks-change'))
         })
         .catch((error: Error) => {
-          window.alert(t('bookmark.error', { message: error.message }))
+          void alertDialog(t('bookmark.error', { message: error.message }))
         })
         .finally(() => setBusy(false))
     } else {
@@ -162,10 +163,10 @@ export function TurnBookmarkButton(props: TurnBookmarkButtonProps): JSX.Element 
     }
   }
 
-  const remove = (): void => {
+  const remove = async (): Promise<void> => {
     const sessionId = resolveSessionId(props.sessionId)
     if (bookmark === null) return
-    if (!window.confirm(t('bookmark.confirm.delete', { label: bookmark.label }))) return
+    if (!(await confirmDialog(t('bookmark.confirm.delete', { label: bookmark.label })))) return
     setBusy(true)
     setMenuOpen(false)
     void api<{ ok: boolean }>('', {
@@ -177,7 +178,7 @@ export function TurnBookmarkButton(props: TurnBookmarkButtonProps): JSX.Element 
         window.dispatchEvent(new CustomEvent('dsh-memory-evolve:bookmarks-change'))
       })
       .catch((error: Error) => {
-        window.alert(t('bookmark.error', { message: error.message }))
+        void alertDialog(t('bookmark.error', { message: error.message }))
       })
       .finally(() => setBusy(false))
   }
