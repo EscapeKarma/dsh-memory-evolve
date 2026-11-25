@@ -4,6 +4,18 @@ All version changes for this repository, in reverse chronological order.
 
 > [中文](CHANGELOG.md)
 
+## 2026-11-25 · v0.4.3 (P3: COI retries keep content, session-scoped isolation)
+
+### Fixed
+
+- **#48 COI tasks keep their content across retries and failures**: an internal run record is created before start, so argument building, file preparation and synchronous spawn failures all take the normal failure path (callers no longer get "started" for a task that never ran); occupancy conflicts are recorded on disk as a finished failure instead of only dropping the in-memory entry and leaving a task queued forever; retries preserve images, background and completion-wake settings, already-started tasks reuse the full prompt (no wrapper stacking), and preparation failures keep the inputs needed to retry; cancel reuses the normal finish path, persisting buffered logs and sending exactly one terminal notification. On Windows, long tasks are handed to the CLI as a task file to dodge the command-line length limit, with plain-cli argument semantics unchanged.
+- **#47 Prompt injections and COI access are scoped per session**: injections record their target session, and snapshot projection, duplicate checks and turn counting only affect that session (subagents advance only their own injections); COI tools, commands and HTTP entry points apply the same hierarchy filter to reads, control, references and session management, returning no private or project records when the viewer identity is missing (global stays shared); `--continue` resolves a registered session the current viewer can access, resumes with an explicit session ID and checks the occupancy lock, reusing the registered working directory; private tasks no longer auto-write shared summaries and project summaries stay in the originating workspace. **Behaviour change**: callers without `session.id` (scripts, clients hitting COI HTTP directly) must supply a session identity, and legacy injection records without a sessionId are no longer projected globally — re-inject in the target session.
+
+### Tests
+
+- Full suite: 1038 tests / 1037 passed / 0 failed / 1 skipped.
+- New `tests/coi-start-failure.test.js` (a failed start leaves no half-started task) and `tests/coi-process-tree.test.js` (cancel kills the CLI wrapper and its children, long task passed as a file); `tests/coi.test.js` and `tests/prompts.test.js` gained session-scoping and retry cases.
+
 ## 2026-11-25 · v0.4.2 (P2: turn-tail stars, in-page dialogs, working-directory bucketing)
 
 ### Added
