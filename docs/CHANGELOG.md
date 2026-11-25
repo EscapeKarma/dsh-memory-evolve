@@ -10,9 +10,19 @@
 
 - **#103 可选轨道级注入**：新增配置 `projectInjectMode` / `dailyInjectMode`（「记忆配置」面板里也有两个下拉），取值 `off`（默认）/ `tail:N` / `always`。project 与 daily 日志默认仍然**不进快照**——它们每次写入都会变，一变宿主就追加一条 runtime-context 尾消息、废掉前缀缓存；但长任务中断后要接着干、或子代理需要父项目上下文时，这份缓存代价是值得付的，所以给出开关：`tail:N` 只注入最近 N 条，`always` 全量。`off` 时渲染结果与升级前逐字节一致（回归用例钉死）。关联上游 issue #103（轨道级注入策略的第 1 项；条目级 `[inject:off]` 标记与命中驱动注入留待后续）。
 
+### 修复
+
+- **#86 轮尾星标恢复注入**：DSH 0.2.x 把消息操作区（含 Branch 按钮）搬到了独立的 `turn-tail` 节点，插件此前只在消息节点内部找 Branch，`findTailBranch()` 恒为 null → 会话书签的 ☆ 星标与「中间轮 fork 接管」都不再出现。现在按 `data-turn-tail` 定位每条回复的操作栏，用该轮最后一条助手消息做书签锚点；中间轮（`aria-disabled="true"`）只接管 fork、不打星；旧 DOM 结构保留兼容路径。
+- **#88 原生确认框换页面内对话框**：Electron / Win32 的原生 `confirm` / `alert`（TaskDialog）关闭后不会把键盘焦点还给页面，`document.hasFocus()` 会持续 false，只能切窗口恢复（上游 electron#41602 已 not_planned）。插件 27 处调用全部改为 `confirmDialog()` / `alertDialog()`（新文件 `src/client/dialog.tsx`：Promise 化、串行排队、Esc 取消、Enter 确认、关闭后焦点还给打开前的元素），并加静态护栏用例禁止再出现 `window.confirm(` / `window.alert(`。
+- **#106 project / key 记忆按执行目录落桶**：子代理、Team 成员、固定工作区可以在别的目录里干活，而 `session.header.cwd` 仍是归属项目——此前一律按 header 落桶，于是 B 项目一条记忆都没有。新增 `lib/cwd.js`（`createCwdResolver()`：显式覆盖 > 宿主 `workingDirectory` 服务 > header.cwd 兜底）与 `MemoryStore.cwdOf()`，`project` / `key` 的桶、`[git 分支]` 标注、daily 的项目标签都走同一入口；Web API / 复审 / 看板使用的伪 agent 行为不变（仍按显式 cwd）。执行目录与归属项目不一致时，快照里给一段说明（文本只依赖目录字符串，逐轮稳定，不破坏前缀缓存）。
+
 ### 测试
 
 - 新增 `tests/snapshot-inject-mode.test.js`（5 例）：默认 off 时带不带条目输出逐字节相等、`tail:N` 只取最近 N 条且保持旧→新顺序、`always` 全量、开关值写错回落 off、无 cwd 时不注入 project、`validateRuntimePatch` 对 `off` / `tail:N` / `always` 与非法值的接受/拒绝边界。
+- `tests/effective-cwd.test.js`（8 例）：解析优先级（显式 > 服务 > header）、子代理写 project 落执行目录的桶、没有 workingDirectory 服务时回退旧行为、伪 agent 不受影响、影子 agent 不改真实 header、`sameCwd` 的 Windows 归一、快照目录说明段逐轮稳定、分支标注不炸。
+- `tests/client-dialog.test.js`（4 例）：源码里不得再出现 `window.confirm(` / `window.alert(`、每处 `confirmDialog(` 必须 await、实现必须有焦点还原 / Esc / Enter / 串行队列 / 无 DOM 兜底、产物含对话框类名且不含原生调用。
+- `tests/client-turn-tail-star.test.js`（4 例）：源码与产物都必须按 `[data-turn-tail]` 定位、必须有 `turnOfTail` / `lastAssistantAnchor` / `enableFork(branch, anchor)`、中间轮跳过打星、幂等与重注入、旧结构兼容。
+
 
 ## 2026-11-25 · v0.4.1（P1：注入稳定性、采纳鲁棒性）
 
