@@ -4,7 +4,7 @@ All version changes for this repository, in reverse chronological order.
 
 > [中文](CHANGELOG.md)
 
-## Unreleased
+## 2026-11-25 · v0.4.2 (P2: turn-tail stars, in-page dialogs, working-directory bucketing)
 
 ### Added
 
