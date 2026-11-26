@@ -83,19 +83,21 @@ git commit -m "修复：……（现象 / 根因 / 改法 / 测试写清）"
 ## 发版（维护者）
 
 1. 改两份 CHANGELOG 与 `package.json` 的 `version`，提交推送；
-2. 打 annotated tag 并推送，建 GitHub Release；
-3. 发版前先跑一次发布包自检（打包 → 解包 → 加载 → 跑 worker，约 3 秒）：
+2. 打 annotated tag 并推送——**推 tag 后 `.github/workflows/release.yml` 会自动跑发布包自检、打包并上传两个 tarball**，不需要本机手动打包；
+3. 想在本机先自检（打包 → 安装 → 加载 → 跑 worker，约 3 秒）：
 
 ```sh
 node --test tests/release-tarball.test.js
 ```
 
-4. 构建并上传预构建包：
+4. 需要补传历史版本、或想重跑某次发版时，手动执行：
 
 ```sh
 pnpm pack:release    # 需要 npm 或 pnpm；DSH 桌面自带的 pnpm 也会被自动找到
 gh release upload v0.6.2 dist/dsh-memory-evolve-0.6.2.tgz dist/dsh-memory-evolve.tgz --clobber
 ```
+
+也可以直接对 CI 发起一次：`gh workflow run release.yml -f tag=v0.6.2`（会按该 tag 取代码、重跑自检并覆盖上传）。
 
 **为什么要传稳定名 `dsh-memory-evolve.tgz`**：插件市场的目录条目里 `tarball` 字段指向
 `https://github.com/<owner>/<repo>/releases/latest/download/dsh-memory-evolve.tgz`，
@@ -124,4 +126,4 @@ This is the community-maintained fork of `csyangwen/dsh-memory-evolve`. The orig
 - **Rules**: no new runtime dependencies; deterministic, cross-platform tests; new file-access code must pass the sensitive-path check; never remove the upstream copyright line.
 - **Commit messages**: state symptom / root cause / fix / tests (the repo's historical style, Chinese preferred but English is fine).
 - Community PRs are merged with `cherry-pick -x`, keeping your authorship.
-- **Releases**: after tagging, run `pnpm pack:release` and upload both tarballs with `gh release upload v<version> dist/<name>-<version>.tgz dist/<name>.tgz --clobber`. The stable-name asset is what the plugin catalog `tarball` field points at (`releases/latest/download/<name>.tgz`), so the entry never needs another PR.
+- **Releases**: pushing a `v*` tag triggers `.github/workflows/release.yml`, which checks that `lib/client.js` matches `src/client/`, runs the release tarball self-check, packs and uploads both tarballs. To backfill an older tag, run `pnpm pack:release` and `gh release upload v<version> dist/<name>-<version>.tgz dist/<name>.tgz --clobber`, or trigger CI with `gh workflow run release.yml -f tag=v<version>`. The stable-name asset is what the plugin catalog `tarball` field points at (`releases/latest/download/<name>.tgz`), so the entry never needs another PR.

@@ -4,6 +4,16 @@ All version changes for this repository, in reverse chronological order.
 
 > [中文](CHANGELOG.md)
 
+## Unreleased
+
+### Added
+
+- Release automation: pushing a `v*` tag now runs `.github/workflows/release.yml`, which verifies `lib/client.js` matches `src/client/`, runs the release tarball self-check (pack / install / load / run the worker), then creates or reuses that tag's Release and uploads both tarballs (versioned + stable name) and finally verifies the stable-name URL is downloadable. Backfilling an old tag is still possible via `pnpm pack:release` or `gh workflow run release.yml -f tag=<tag>`.
+
+### Docs
+
+- `README.md` and `CONTRIBUTING.md` now describe "push a tag and let CI do the rest", keeping the manual commands as a fallback for backfills and re-runs.
+
 ## 2026-11-26 · v0.6.1 (audit follow-up: attachment path checks + boundary hardening)
 
 ### Security (audit B1③: attachment paths)

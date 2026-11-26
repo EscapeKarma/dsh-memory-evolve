@@ -383,7 +383,9 @@ vendor/          mermaid.min.js
 
 ### 发版流程
 
-版本用 **git tag** 标识（支持 `v1.2.3` 语义化与 `v26081302` 日期制），已推送的 main 提交才能打 tag：
+版本用 **git tag** 标识（支持 `v1.2.3` 语义化与 `v26081302` 日期制），已推送的 main 提交才能打 tag。
+
+**推送 `v*` tag 后自动发版**：`.github/workflows/release.yml` 会依次做「构建产物与源码一致性检查 → 发布包自检（打包 / 安装 / 加载 / 跑 worker）→ 打包 → 创建或复用 Release 并上传两个 tarball」，所以正常发版只需要改版本号、推 main、推 tag：
 
 ```sh
 # 1. 改 CHANGELOG（docs/CHANGELOG.md 与 .en.md 两份）与 package.json 的 version
@@ -391,16 +393,20 @@ vendor/          mermaid.min.js
 git push origin main
 
 # 3. 打 annotated tag 并推送（tag 已存在但指向旧提交时用 --force-with-lease）
-git tag -a v0.4.0 -m "v0.4.0：……"
-git push origin refs/tags/v0.4.0
-
-# 4. 建 GitHub Release（附本次要点）
-gh release create v0.4.0 --title "v0.4.0 — ……" --notes-file notes.md
-
-# 5. 构建并上传预构建包（市场 tarball 字段指向稳定名，见下）
-pnpm pack:release
-gh release upload v0.4.0 dist/dsh-memory-evolve-0.4.0.tgz dist/dsh-memory-evolve.tgz --clobber
+git tag -a v0.6.2 -m "v0.6.2：……"
+git push origin refs/tags/v0.6.2
 ```
+
+推送后到仓库的 Actions 里看 `release` 这个 workflow 即可；它会把资产传到该 tag 的 Release 并校验稳定名地址返回 200。
+
+需要**补传历史版本**（或想重跑某次发版）时，用同样的 workflow 手动触发，或在本地执行下面两条：
+
+```sh
+pnpm pack:release
+gh release upload v0.6.2 dist/dsh-memory-evolve-0.6.2.tgz dist/dsh-memory-evolve.tgz --clobber
+```
+
+手动触发方式：`gh workflow run release.yml -f tag=v0.6.2`。
 
 预构建包有两个文件：带版本号的那个方便人工下载与按版本核对；**稳定名** `dsh-memory-evolve.tgz` 是插件市场的 `tarball` 字段所指（`https://github.com/<owner>/<repo>/releases/latest/download/dsh-memory-evolve.tgz`），每次发版覆盖上传即可，目录条目不必再改。
 

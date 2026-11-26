@@ -4,6 +4,16 @@
 
 > [English](CHANGELOG.en.md)
 
+## 未发布
+
+### 新增
+
+- 推 `v*` tag 即自动发版：`.github/workflows/release.yml` 会校验 `lib/client.js` 与 `src/client/` 一致、跑发布包自检（打包 / 安装 / 加载 / 跑 worker），再创建或复用该 tag 的 Release 并上传两个 tarball（带版本号 + 稳定名），最后校验稳定名地址可下载。需要补传历史版本时仍可 `pnpm pack:release` 手动上传，或用 `gh workflow run release.yml -f tag=<tag>` 重跑。
+
+### 文档
+
+- `README.md` 与 `CONTRIBUTING.md` 的发版流程改为「推 tag 自动完成」，手动命令只作为补传/重跑的兜底。
+
 ## 2026-11-26 · v0.6.1（巡检收尾：外发附件路径校验 + 边界加固）
 
 ### 安全（巡检 B1③：附件外发路径）
