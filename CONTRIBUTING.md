@@ -84,7 +84,13 @@ git commit -m "修复：……（现象 / 根因 / 改法 / 测试写清）"
 
 1. 改两份 CHANGELOG 与 `package.json` 的 `version`，提交推送；
 2. 打 annotated tag 并推送，建 GitHub Release；
-3. 构建并上传预构建包：
+3. 发版前先跑一次发布包自检（打包 → 解包 → 加载 → 跑 worker，约 3 秒）：
+
+```sh
+node --test tests/release-tarball.test.js
+```
+
+4. 构建并上传预构建包：
 
 ```sh
 pnpm pack:release    # 需要 npm 或 pnpm；DSH 桌面自带的 pnpm 也会被自动找到
