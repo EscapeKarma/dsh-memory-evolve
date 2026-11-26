@@ -80,9 +80,35 @@ git commit -m "修复：……（现象 / 根因 / 改法 / 测试写清）"
 - 面向使用者的说明在 `README.md` / `README.en.md`（两份镜像），细节在 `README-详细说明.md`
 - 开发相关在 `docs/DEVELOPING-WINDOWS.md`、`docs/rules.md`（记忆与审查规则）、`docs/记忆同步.md`、`docs/COI-调度.md`
 
+## 发版（维护者）
+
+1. 改两份 CHANGELOG 与 `package.json` 的 `version`，提交推送；
+2. 打 annotated tag 并推送，建 GitHub Release；
+3. 构建并上传预构建包：
+
+```sh
+pnpm pack:release    # 需要 npm 或 pnpm；DSH 桌面自带的 pnpm 也会被自动找到
+gh release upload v0.6.2 dist/dsh-memory-evolve-0.6.2.tgz dist/dsh-memory-evolve.tgz --clobber
+```
+
+**为什么要传稳定名 `dsh-memory-evolve.tgz`**：插件市场的目录条目里 `tarball` 字段指向
+`https://github.com/<owner>/<repo>/releases/latest/download/dsh-memory-evolve.tgz`，
+每次发版覆盖上传同一个名字即可，目录条目不用再改、也不用再提 PR。
+带版本号的那个文件留着给人工下载与按版本核对。
+
+上传后自己验一遍：
+
+```sh
+curl -sIL -o /dev/null -w "%{http_code}
+" https://github.com/EscapeKarma/dsh-memory-evolve/releases/latest/download/dsh-memory-evolve.tgz
+```
+
+期望 `200`。若市场里仍显示「源码构建」，等目录仓库的构建跑完（通常几十分钟）。
+
 ---
 
 ## English summary
+
 
 This is the community-maintained fork of `csyangwen/dsh-memory-evolve`. The original author is inactive; maintenance happens in spare time — issues are answered, but no SLA.
 
@@ -92,3 +118,4 @@ This is the community-maintained fork of `csyangwen/dsh-memory-evolve`. The orig
 - **Rules**: no new runtime dependencies; deterministic, cross-platform tests; new file-access code must pass the sensitive-path check; never remove the upstream copyright line.
 - **Commit messages**: state symptom / root cause / fix / tests (the repo's historical style, Chinese preferred but English is fine).
 - Community PRs are merged with `cherry-pick -x`, keeping your authorship.
+- **Releases**: after tagging, run `pnpm pack:release` and upload both tarballs with `gh release upload v<version> dist/<name>-<version>.tgz dist/<name>.tgz --clobber`. The stable-name asset is what the plugin catalog `tarball` field points at (`releases/latest/download/<name>.tgz`), so the entry never needs another PR.

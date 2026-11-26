@@ -396,7 +396,13 @@ git push origin refs/tags/v0.4.0
 
 # 4. 建 GitHub Release（附本次要点）
 gh release create v0.4.0 --title "v0.4.0 — ……" --notes-file notes.md
+
+# 5. 构建并上传预构建包（市场 tarball 字段指向稳定名，见下）
+pnpm pack:release
+gh release upload v0.4.0 dist/dsh-memory-evolve-0.4.0.tgz dist/dsh-memory-evolve.tgz --clobber
 ```
+
+预构建包有两个文件：带版本号的那个方便人工下载与按版本核对；**稳定名** `dsh-memory-evolve.tgz` 是插件市场的 `tarball` 字段所指（`https://github.com/<owner>/<repo>/releases/latest/download/dsh-memory-evolve.tgz`），每次发版覆盖上传即可，目录条目不必再改。
 
 发布后：使用者的「版本」页会看到红点并可一键更新（仅 git clone 安装）；用 `dsh plugin add` 安装的人重新 add 即可。
 
