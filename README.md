@@ -62,7 +62,9 @@ dsh plugin --profile web add @escapekarma49/dsh-memory-evolve   # 重新 add 即
 # 然后完全退出 DSH 再打开
 ```
 
-想固定版本就带上 commit 或 tag：`github:EscapeKarma/dsh-memory-evolve#v0.6.1`，或 npm 侧写 `@escapekarma49/dsh-memory-evolve@0.7.0`。
+想固定版本就带上 tag：`github:EscapeKarma/dsh-memory-evolve#v0.7.1`，或 npm 侧写 `@escapekarma49/dsh-memory-evolve@0.7.1`。
+
+> ⚠️ **别用 `github:...#<40 位提交号>` 钉死安装**：DSH 对 git 安装的包会把「更新目标」显示成完整提交号（插件卡片上会出现 `更新到 v1649819a17006d…` 这种长串），既难读，也不会跟随版本号变化。要固定版本请用 npm 的 `@escapekarma49/dsh-memory-evolve@x.y.z` 或 tag 形式；已经在用提交号钉死的，卸载后从插件市场重装一次即可恢复正常版本显示。
 
 > **从 v0.6.x 升级（包名改成 scoped）**：Loader 条目 id 仍是 `dsh-memory-evolve`，profile 里的配置与数据都不用动；只是依赖名变成 `@escapekarma49/dsh-memory-evolve`。用市场/tarball 装的会由市场重装一次；用 `github:` 装的建议重新 `add` 一次（旧的 `node_modules/dsh-memory-evolve` 目录可手动删掉）。
 

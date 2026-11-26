@@ -62,7 +62,9 @@ dsh plugin --profile web add @escapekarma49/dsh-memory-evolve   # re-add pulls t
 # then fully quit DSH and start it again
 ```
 
-To pin a version, append a commit or tag: `github:EscapeKarma/dsh-memory-evolve#v0.6.1`, or on npm `@escapekarma49/dsh-memory-evolve@0.7.0`.
+To pin a version, append a tag: `github:EscapeKarma/dsh-memory-evolve#v0.7.1`, or on npm `@escapekarma49/dsh-memory-evolve@0.7.1`.
+
+> ⚠️ **Do not pin installs to a 40-character commit** (`github:...#<sha>`): for git-installed bundles DSH renders the update target as the full commit hash, so the plugin card shows something like `更新到 v1649819a17006d…` — hard to read and it does not follow version numbers. Pin an npm version (`@escapekarma49/dsh-memory-evolve@x.y.z`) or a tag instead; if you already pinned a commit, uninstall and reinstall from the plugin marketplace to get normal version display back.
 
 > **Upgrading from v0.6.x (package renamed to a scoped name)**: the Loader entry id stays `dsh-memory-evolve`, so profile config and data need no change; only the dependency name becomes `@escapekarma49/dsh-memory-evolve`. Marketplace/tarball installs get reinstalled by the marketplace; `github:` installs should be re-added once (the old `node_modules/dsh-memory-evolve` directory can be deleted).
 

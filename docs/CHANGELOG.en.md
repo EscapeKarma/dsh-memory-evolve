@@ -4,6 +4,13 @@ All version changes for this repository, in reverse chronological order.
 
 > [中文](CHANGELOG.md)
 
+## Unreleased
+
+### Docs
+
+- The install sections of `README.md`, `README.en.md` and `README-详细说明.md` now warn against pinning installs to a 40-character commit (`github:...#<sha>`). For git-installed bundles DSH renders the update target as the full commit hash (the plugin card shows strings like `更新到 v1649819a17006d…`), which is hard to read and does not follow version numbers; pin an npm version (`@escapekarma49/dsh-memory-evolve@x.y.z`) or a tag instead.
+- Reported the display problem upstream: deepseek-ai/deepseek-harness discussion #14385 (suggest short hash or version in Git update targets).
+
 ## 2026-11-27 · v0.7.1 (DSH admission integration + docs and author metadata cleanup)
 
 ### Security

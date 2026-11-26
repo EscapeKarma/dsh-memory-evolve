@@ -4,6 +4,13 @@
 
 > [English](CHANGELOG.en.md)
 
+## 未发布
+
+### 文档
+
+- README（中/英）与《README-详细说明》的安装小节新增警示：不要用 `github:...#<40 位提交号>` 钉死安装。DSH 对 git 安装的包会把「更新目标」显示成完整提交号（插件卡片上出现 `更新到 v1649819a17006d…` 这类长串），既难读也不跟随版本号；固定版本请用 npm 的 `@escapekarma49/dsh-memory-evolve@x.y.z` 或 tag 形式。
+- 已向 DSH 上游报告该显示问题：deepseek-ai/deepseek-harness 讨论 #14385（建议 Git 目标显示短 hash 或版本号）。
+
 ## 2026-11-27 · v0.7.1（接入 DSH 官方准入检查 + 文档与作者信息整理）
 
 ### 安全
