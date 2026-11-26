@@ -4,12 +4,25 @@ All version changes for this repository, in reverse chronological order.
 
 > [中文](CHANGELOG.md)
 
-## Unreleased
+## 2026-11-27 · v0.7.2 (skin-safe surfaces: opaque panels when a skin is active)
+
+### Added
+
+- **Skin-safe surfaces** (`skinSafeSurfaces`, `auto` by default): at startup the client probes the theme surface alpha (an off-screen probe reading the computed `--dsw-alias-bg-base`), and only when the theme is genuinely translucent does it put built-in opaque surfaces (background, hairline border, radius, shadow) on the plugin root containers (memory / skills / todos / settings / COI / broadcast / prompts / bookmarks / advisor panel). Inside those roots the `--dsw-alias-bg-*`, `--dsw-alias-border-*` and interaction tokens are remapped to solid values, so every existing rule becomes solid automatically. With an opaque theme (the vast majority) **not a single pixel changes**. The tone (dark/light) is derived from the theme label color, so an opaque light panel never pairs with the wrong palette.
+- Three settings: `auto` (probe, default) / `on` (always opaque, for skins that fool the probe) / `off` (always follow the theme; may stay unreadable under a skin).
+
+### Fixed
+
+- With a DSH skin (translucent/transparent background) the memory tab strip, warning banner and file cards — and the panels of every other tab — had their text sitting straight on the skin artwork (user report). They now switch to solid surfaces automatically.
 
 ### Docs
 
 - The install sections of `README.md`, `README.en.md` and `README-详细说明.md` now warn against pinning installs to a 40-character commit (`github:...#<sha>`). For git-installed bundles DSH renders the update target as the full commit hash (the plugin card shows strings like `更新到 v1649819a17006d…`), which is hard to read and does not follow version numbers; pin an npm version (`@escapekarma49/dsh-memory-evolve@x.y.z`) or a tag instead.
 - Reported the display problem upstream: deepseek-ai/deepseek-harness discussion #14385 (suggest short hash or version in Git update targets).
+
+### Tests
+
+- New `tests/client-surface.test.js` (13 cases): alpha/luminance parsing, translucent vs opaque decisions, tone detection, preference override, the `<html>` attributes, SSR safety, plus static contracts for the token remapping, client call sites, host config validation, the config dropdown and the built bundle (so a new tab cannot forget its root container, and a stale `lib/client.js` fails the suite).
 
 ## 2026-11-27 · v0.7.1 (DSH admission integration + docs and author metadata cleanup)
 

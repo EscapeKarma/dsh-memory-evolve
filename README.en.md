@@ -277,6 +277,7 @@ Runtime settings live under *Settings → Memory Evolve → Configuration*, or i
 | `keyProgressiveDisclosure` / `memoryProgressiveDisclosure` / `userProgressiveDisclosure` | `off` | `off` full text / `auto` full for small datasets / `on` always summaries |
 | `summaryMinChars` | `0` | In summary mode, entries whose body is at most this many characters stay fully injected; longer ones fold into a one-line summary. `0`=off (same as before), `400` recommended (~61% saving); available from 0.5.0 |
 | `trustedHosts` | `[]` | Extra Hosts allowed to reach the plugin HTTP API (LAN / reverse-proxy setups). Empty = loopback only; cross-site requests are always rejected. Available from 0.5.0; honoured by DSH admission as well since 0.7.1 |
+| `skinSafeSurfaces` | `auto` | Skin-safe surfaces. `auto` probes whether the theme surface is translucent and, if so, gives the plugin panels a built-in opaque surface (readable under a skin) while leaving opaque themes untouched; `on` always adds it; `off` always follows the theme. Available from 0.7.2 |
 | `channelSendRoots` | `[]` | Absolute directories allowed for `de_channel_send` / `de_notify` attachments. Empty = no directory limit, but sensitive paths (`.ssh`, `.aws`, `.env`, …) are always refused. Available from 0.6.1 |
 | `projectInjectMode` / `dailyInjectMode` | `off` | project / daily logs are not injected by default (they change on every write, which defeats prefix caching); `tail:N` injects the newest N entries, `always` injects everything |
 | `perTurnWriteGuard` / `writeGuardThreshold` | `false` / `2` | write watchdog: remind after N turns without a log write |
@@ -296,6 +297,8 @@ Full list: [README-详细说明.md](README-详细说明.md) (Chinese).
 ---
 
 ## FAQ
+
+**The panels are hard to read after installing a skin?** Since 0.7.2 this is handled automatically: at startup the client probes the theme surface, and when a skin made it translucent the plugin panels get a built-in opaque surface (dark skin → dark surface, light skin → light surface). Users on an opaque theme see no change at all. If a skin fools the probe, set `skinSafeSurfaces` to `on` to always add the surface, or `off` to always follow the theme.
 
 **Installed but nothing happened?**
 The plugin loads at process start: **fully quit DSH and start it again** (closing the window to the tray does not count). Reloading the page never loads new code.
