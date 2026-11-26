@@ -408,6 +408,8 @@ gh release upload v0.6.2 dist/dsh-memory-evolve-0.6.2.tgz dist/dsh-memory-evolve
 
 手动触发方式：`gh workflow run release.yml -f tag=v0.6.2`。
 
+**预发布版本**：tag 写成带 `-` 的形式（如 `v0.7.0-rc.1`）时，工作流会自动把该 Release 标成 **Pre-release**，`releases/latest` 不会指向它，所以插件市场的稳定名仍然指向最后一个正式版；想让人先试用就打 rc tag，正式发布再打不带 `-` 的 tag。
+
 预构建包有两个文件：带版本号的那个方便人工下载与按版本核对；**稳定名** `dsh-memory-evolve.tgz` 是插件市场的 `tarball` 字段所指（`https://github.com/<owner>/<repo>/releases/latest/download/dsh-memory-evolve.tgz`），每次发版覆盖上传即可，目录条目不必再改。
 
 发布后：使用者的「版本」页会看到红点并可一键更新（仅 git clone 安装）；用 `dsh plugin add` 安装的人重新 add 即可。

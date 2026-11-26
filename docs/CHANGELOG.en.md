@@ -13,6 +13,7 @@ All version changes for this repository, in reverse chronological order.
 ### Docs
 
 - `README.md` and `CONTRIBUTING.md` now describe "push a tag and let CI do the rest", keeping the manual commands as a fallback for backfills and re-runs.
+- `CONTRIBUTING.md` gained a "pre-releases" section (a tag containing `-` is published as a Pre-release and never takes over `releases/latest`); `README.md` mentions the same in one line.
 
 ## 2026-11-26 · v0.6.1 (audit follow-up: attachment path checks + boundary hardening)
 

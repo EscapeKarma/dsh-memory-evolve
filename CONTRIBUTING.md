@@ -104,6 +104,23 @@ gh release upload v0.6.2 dist/dsh-memory-evolve-0.6.2.tgz dist/dsh-memory-evolve
 每次发版覆盖上传同一个名字即可，目录条目不用再改、也不用再提 PR。
 带版本号的那个文件留着给人工下载与按版本核对。
 
+### 预发布版本（rc / beta）
+
+想先放出去让人试、又不想让市场把它当成正式版，就把 tag 写成带 `-` 的形式：
+
+```sh
+git tag -a v0.7.0-rc.1 -m "v0.7.0-rc.1：……"
+git push origin refs/tags/v0.7.0-rc.1
+```
+
+tag 名里带 `-` 时，工作流会给 `gh release create` 加 `--prerelease`，于是：
+
+- 该 Release 在仓库页面上被标为 **Pre-release**；
+- GitHub 的 `releases/latest` **不会**指向它，市场稳定名 `…/releases/latest/download/dsh-memory-evolve.tgz` 仍然指向最后一个正式版；
+- 资产照样打包上传，试用者可以直接下载 `…/releases/download/v0.7.0-rc.1/dsh-memory-evolve-0.7.0-rc.1.tgz`。
+
+正式发布时再打 `v0.7.0`（不带 `-`），它会成为新的 latest 并接管市场稳定名。
+
 上传后自己验一遍：
 
 ```sh
@@ -127,3 +144,4 @@ This is the community-maintained fork of `csyangwen/dsh-memory-evolve`. The orig
 - **Commit messages**: state symptom / root cause / fix / tests (the repo's historical style, Chinese preferred but English is fine).
 - Community PRs are merged with `cherry-pick -x`, keeping your authorship.
 - **Releases**: pushing a `v*` tag triggers `.github/workflows/release.yml`, which checks that `lib/client.js` matches `src/client/`, runs the release tarball self-check, packs and uploads both tarballs. To backfill an older tag, run `pnpm pack:release` and `gh release upload v<version> dist/<name>-<version>.tgz dist/<name>.tgz --clobber`, or trigger CI with `gh workflow run release.yml -f tag=v<version>`. The stable-name asset is what the plugin catalog `tarball` field points at (`releases/latest/download/<name>.tgz`), so the entry never needs another PR.
+- **Pre-releases**: a tag containing `-` (e.g. `v0.7.0-rc.1`) is published as a **Pre-release** — `releases/latest` keeps pointing at the last stable tag, so the catalog's stable-name asset is not hijacked by an rc build. Tag `v0.7.0` without the suffix when it is ready.

@@ -13,6 +13,7 @@
 ### 文档
 
 - `README.md` 与 `CONTRIBUTING.md` 的发版流程改为「推 tag 自动完成」，手动命令只作为补传/重跑的兜底。
+- `CONTRIBUTING.md` 新增「预发布版本」小节（tag 带 `-` 时自动标 Pre-release、不抢占 `releases/latest`），`README.md` 发版流程同步一句。
 
 ## 2026-11-26 · v0.6.1（巡检收尾：外发附件路径校验 + 边界加固）
 
