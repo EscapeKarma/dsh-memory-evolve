@@ -113,7 +113,8 @@ jobs:
             exit 0
           fi
           # 发布刚才自检过、并已上传到 Release 的那个 tarball，保证「测的就是发的」
-          npm publish "dist/dsh-memory-evolve-$VERSION.tgz" --access public --provenance
+          # 注意必须带 ./ 前缀：不带会被 npm 当成 GitHub 简写 dist/<repo>，转去 ls-remote 一个不存在的仓库
+          npm publish "./dist/dsh-memory-evolve-$VERSION.tgz" --access public --provenance
           for i in 1 2 3 4 5 6; do
             if npm view "$NAME@$VERSION" version >/dev/null 2>&1; then
               echo "npm 已上架：$NAME@$VERSION"
