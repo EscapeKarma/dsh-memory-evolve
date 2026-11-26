@@ -4,7 +4,7 @@ All version changes for this repository, in reverse chronological order.
 
 > [中文](CHANGELOG.md)
 
-## Unreleased
+## 2026-11-27 · v0.7.0 (npm release: scoped package name, automated publishing)
 
 ### Added
 

@@ -22,7 +22,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const PKG = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
 const PKG_NAME = String(PKG.name ?? 'dsh-memory-evolve');
-const BASE = PKG_NAME.replace(/^@/, '').replace(/[/\\]/g, '-');
+const BASE = PKG_NAME.replace(/^@[^/]+\//, '').replace(/[/\\]/g, '-'); // 产物名去掉 scope
 
 const GIT_ENV = {
   GIT_AUTHOR_NAME: 'release-check',
@@ -135,7 +135,9 @@ test('发布包自检：打包产物可安装、模块可加载、worker 可运�
     }
     const tgzName = readdirSync(dist).find((f) => f.endsWith('.tgz'));
     assert.ok(tgzName, '打包后 dist 里应该有 .tgz');
-    assert.equal(tgzName, `${BASE}-${PKG.version}.tgz`, '产物名应该是 <name>-<version>.tgz');
+    // 包管理器给 scoped 包起的名字带 scope（@scope/name → scope-name），这里只校验版本后缀；
+    // 对外发布用的稳定名由 scripts/pack-release.mjs 统一改成不带 scope 的 dsh-memory-evolve.tgz。
+    assert.ok(tgzName.endsWith(`-${PKG.version}.tgz`), `产物名应以 -${PKG.version}.tgz 结尾，实际 ${tgzName}`);
     const tgz = join(dist, tgzName);
 
     // 2) 装进一个干净项目（等同于用户 `dsh plugin add` 时发生的事）

@@ -12,7 +12,7 @@
 //   gh release upload v<version> dist/<package-name>-<version>.tgz dist/<package-name>.tgz --clobber
 
 import { spawnSync } from 'node:child_process';
-import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, statSync } from 'node:fs';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -90,9 +90,18 @@ function main() {
   mkdirSync(DIST, { recursive: true });
   const used = runPack();
 
-  const base = String(pkg.name ?? '').replace(/^@/, '').replace(/[/\\]/g, '-');
+  // 稳定名去掉 scope：@scope/name → name，这样市场的 tarball 地址不受改包名影响。
+  const base = String(pkg.name ?? '').replace(/^@[^/]+\//, '').replace(/[/\\]/g, '-');
   const versioned = join(DIST, `${base}-${version}.tgz`);
   const stable = join(DIST, `${base}.tgz`);
+
+  // 包管理器给 scoped 包起的文件名带 scope（如 escapekarma49-dsh-memory-evolve-0.7.0.tgz），
+  // 统一改名成不带 scope 的那种，保证稳定名与历史发版一致。
+  const packedName = readdirSync(DIST)
+    .filter((f) => f.endsWith(`-${version}.tgz`) && f !== `${base}-${version}.tgz`)
+    .sort()
+    .pop();
+  if (packedName !== undefined) renameSync(join(DIST, packedName), versioned);
 
   if (!existsSync(versioned)) {
     console.error(`没找到打包产物：${versioned}`);

@@ -4,7 +4,7 @@
 
 > [English](CHANGELOG.en.md)
 
-## 未发布
+## 2026-11-27 · v0.7.0（npm 发布：包名改为 scoped，启用自动发包）
 
 ### 新增
 

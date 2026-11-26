@@ -89,3 +89,15 @@ jobs:
           code=$(curl -sIL -o /dev/null -w '%{http_code}' "$URL")
           echo "$URL → $code"
           test "$code" = "200"
+
+      # GitHub 不会因为 GITHUB_TOKEN 创建 Release 而自动触发 release: published，
+      # 所以正式版本在这里显式派发一次 npm 发布（预发布 tag 不发 npm）。
+      - name: 触发 npm 发布（正式版）
+        if: ${{ !contains(github.event.inputs.tag || github.ref_name, '-') }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.event.inputs.tag || github.ref_name }}
+        run: |
+          set -euo pipefail
+          gh workflow run publish-npm.yml -f "version=${TAG#v}"
+          echo "已派发 publish-npm.yml（version=${TAG#v}）"
