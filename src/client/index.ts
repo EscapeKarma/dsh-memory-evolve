@@ -43,6 +43,7 @@ import { createWideBubble, createWideChat } from './wide-chat.ts'
 import { createContextMeterWarn } from './context-meter-warn.ts'
 import { createMermaidRenderer } from './mermaid-render.ts'
 import { claimStyleOwnership } from './style-tag.ts'
+import { syncSurface } from './surface.ts'
 import { FEATURES_EVENT, readFeatures } from './ui-settings-features.ts'
 import styles from './styles.css'
 import coiStyles from './coi-styles.css'
@@ -856,6 +857,11 @@ export const zh = {
   'panel.config.summaryMinChars': '摘要模式下按长度折叠',
   'panel.config.summaryMinChars.hint': '摘要模式下正文不超过该字符数的条目保持全文注入，更长的才折成「[日期] [短id] 摘要」——短条目不再因为整轨摘要丢掉本来就很少的信息。默认关闭（所有条目都折成摘要行，与旧版一致）；建议 400（实测省约 61%）',
   'panel.config.summaryMinChars.off': '关闭（全部折成摘要，默认）',
+  'panel.config.skinSafeSurfaces': '皮肤兼容表面',
+  'panel.config.skinSafeSurfaces.hint': '套了 DSH 皮肤（背景半透明）时，面板文字会叠在插画上看不清。自动（默认）= 探测主题底色，透明时给插件面板加不透明底，不透明时保持原样；始终加 = 无论主题都加不透明底；跟随主题 = 从不加（皮肤下可能看不清）',
+  'panel.config.skinSafeSurfaces.auto': '自动（探测，默认）',
+  'panel.config.skinSafeSurfaces.on': '始终加不透明底',
+  'panel.config.skinSafeSurfaces.off': '始终跟随主题',
   'panel.config.userProgressiveDisclosure': 'user 轨渐进式披露',
   'panel.config.userProgressiveDisclosure.hint': '控制用户档案（USER.md）的注入方式：同上。user 轨条目短、摘要收益很小（实测省约 500 字符），一般保持 off',
   'panel.config.userProgressiveDisclosure.auto': '自动',
@@ -1709,6 +1715,11 @@ export const en: Record<MemoryEvolveKey, string> = {
   'panel.config.summaryMinChars': 'Fold long entries only (summary mode)',
   'panel.config.summaryMinChars.hint': 'In summary mode, entries whose body is at most this many characters stay fully injected; longer ones fold into "[date] [short-id] summary" - short entries no longer lose the little information they had. Off by default (everything folds, same as before); 400 recommended (measured ~61% saving)',
   'panel.config.summaryMinChars.off': 'Off (fold everything, default)',
+  'panel.config.skinSafeSurfaces': 'Skin-safe surfaces',
+  'panel.config.skinSafeSurfaces.hint': 'With a DSH skin (translucent background) the panel text sits straight on the artwork and becomes unreadable. Auto (default) probes the theme surface: see-through themes get an opaque panel, opaque themes stay untouched. Always = always add the opaque panel. Follow theme = never add it (may be unreadable under a skin).',
+  'panel.config.skinSafeSurfaces.auto': 'Auto (probe, default)',
+  'panel.config.skinSafeSurfaces.on': 'Always opaque',
+  'panel.config.skinSafeSurfaces.off': 'Always follow theme',
   'panel.config.userProgressiveDisclosure': 'User-track progressive disclosure',
   'panel.config.userProgressiveDisclosure.hint': 'Control how the user profile (USER.md) is injected: same as above. User-track entries are short, so the saving is small (measured ~500 characters); usually keep it off',
   'panel.config.userProgressiveDisclosure.auto': 'Auto',
@@ -1865,6 +1876,12 @@ export function apply(ctx: Context): void {
     document.head.appendChild(tag)
     return () => {} // 常驻：不随插件重载移除（原因见 apply() 顶部说明）
   }, 'memory-evolve: stylesheet')
+
+  // 皮肤兼容：主题底色是半透明时（用户装了皮肤）给面板加不透明底，
+  // 否则保持主题原样。配置项 skinSafeSurfaces 加载后覆盖这一默认。
+  try {
+    syncSurface(document, 'auto')
+  } catch { /* 探测失败就保持主题原样 */ }
 
   // Skill-browser styles (merged from the standalone dsh-skill-browser
   // plugin): sb- prefixed, injected alongside the panel styles.
@@ -2090,8 +2107,11 @@ export function apply(ctx: Context): void {
       label: () => (todosBadgeCount > 0 ? t('todosTab.label.pending', { count: todosBadgeCount }) : t('todosTab.label')),
     }, (props) => TodosTabView({ ...props, t }))))
   const onRuntimeConfigChanged = (event: Event): void => {
-    const detail = (event as CustomEvent<{ todoEnabled?: boolean }>).detail
+    const detail = (event as CustomEvent<{ todoEnabled?: boolean; skinSafeSurfaces?: 'auto' | 'on' | 'off' }>).detail
     todoTabLifecycle.setEnabled(detail?.todoEnabled !== false)
+    try {
+      syncSurface(document, detail?.skinSafeSurfaces)
+    } catch { /* 探测失败就保持当前模式 */ }
   }
   window.addEventListener(RUNTIME_CONFIG_CHANGED, onRuntimeConfigChanged)
   ctx.effect(() => () => window.removeEventListener(RUNTIME_CONFIG_CHANGED, onRuntimeConfigChanged), 'memory-evolve: todo tab runtime listener')
@@ -2184,7 +2204,10 @@ export function apply(ctx: Context): void {
 
   void fetch('/memory-evolve/api/config')
     .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
-    .then((data: { config?: { memoryTabEnabled?: boolean; modelsEnabled?: boolean } }) => {
+    .then((data: { config?: { memoryTabEnabled?: boolean; modelsEnabled?: boolean; skinSafeSurfaces?: 'auto' | 'on' | 'off' } }) => {
+      try {
+        syncSurface(document, data.config?.skinSafeSurfaces)
+      } catch { /* 探测失败就保持当前模式 */ }
       if (tabCancelled) return
       // 模型设置 tab：跟随 modelsEnabled 运行时开关（默认开，与其他模块
       // 同款独立开关，在 DSH「设置 → Memory Evolve → 配置」里切换；开启后刷新页面出现）。

@@ -136,6 +136,8 @@ interface RuntimeConfig {
    *  MEMORY.md 是全量注入的最大头（实测 on 可省约 60% 上下文）。 */
   memoryProgressiveDisclosure: 'auto' | 'off' | 'on'
   summaryMinChars?: number
+  /** 皮肤兼容表面：auto（探测主题透明度，透明时加不透明底）/ on（始终加）/ off（跟随主题）。 */
+  skinSafeSurfaces?: 'auto' | 'on' | 'off'
   /** 全局轨 user 渐进式披露：同上。user 轨条目短、摘要收益小（实测约省 500 字符），一般保持 off。 */
   userProgressiveDisclosure: 'auto' | 'off' | 'on'
   /** #103 project 轨注入：off（默认，不注入，缓存最省）/ tail:N（只注入最近 N 条）/ always（全量）。
@@ -320,6 +322,7 @@ export function MemoryQueueView(props: MemoryQueueViewProps): JSX.Element {
       keyFullInjectCharLimit: draft.keyFullInjectCharLimit,
       memoryProgressiveDisclosure: draft.memoryProgressiveDisclosure,
       summaryMinChars: draft.summaryMinChars ?? 0,
+      skinSafeSurfaces: draft.skinSafeSurfaces ?? 'auto',
       userProgressiveDisclosure: draft.userProgressiveDisclosure,
       projectInjectMode: draft.projectInjectMode,
       dailyInjectMode: draft.dailyInjectMode,
@@ -853,6 +856,22 @@ export function MemoryQueueView(props: MemoryQueueViewProps): JSX.Element {
                     <option value="200">200</option>
                     <option value="400">400</option>
                     <option value="800">800</option>
+                  </select>
+                </label>
+                {/* 皮肤兼容表面：装了皮肤（半透明背景）时给插件面板加不透明底，避免文字叠在插画上 */}
+                <label className="me-field">
+                  <span className="me-field-label">
+                    {t('panel.config.skinSafeSurfaces')}
+                    <em className="me-field-hint">{t('panel.config.skinSafeSurfaces.hint')}</em>
+                  </span>
+                  <select
+                    className="me-todo-select"
+                    value={draft.skinSafeSurfaces ?? 'auto'}
+                    onChange={(event) => patchDraft({ skinSafeSurfaces: event.target.value as 'auto' | 'on' | 'off' })}
+                  >
+                    <option value="auto">{t('panel.config.skinSafeSurfaces.auto')}</option>
+                    <option value="on">{t('panel.config.skinSafeSurfaces.on')}</option>
+                    <option value="off">{t('panel.config.skinSafeSurfaces.off')}</option>
                   </select>
                 </label>
                 {/* #103 轨道级注入：project / daily 默认不注入（每次写入都变，会废掉缓存） */}

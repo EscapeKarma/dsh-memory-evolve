@@ -2195,3 +2195,137 @@
   white-space: pre-wrap;
   word-break: break-word;
 }
+
+/* ---------------------------------------------------------------------------
+ * Skin-safe opaque surfaces.
+ *
+ * Users can install "skins" that override the --dsw-alias-bg-* tokens with
+ * translucent colors; our panels then draw straight onto the skin artwork and
+ * text becomes unreadable (reported for the memory tab's tab strip, warning
+ * banner and file cards).
+ *
+ * src/client/surface.ts measures the theme's surface alpha at runtime and sets
+ * data-me-surface="opaque" (plus a dark/light tone) on <html> only when the
+ * theme is see-through. In the normal case nothing below applies and the theme
+ * look stays byte-identical.
+ *
+ * Instead of restyling every rule, we remap the layout tokens *inside* the
+ * plugin's root containers: all existing var(--dsw-alias-bg-layer-1) style
+ * rules then resolve to a solid color automatically.
+ * ------------------------------------------------------------------------- */
+
+:root[data-me-surface='opaque'][data-me-surface-tone='dark'] {
+  --me-surface: #151a21;
+  --me-surface-raised: #1c222b;
+  --me-surface-sunken: #0f1318;
+  --me-outline: #2e3742;
+  --me-tint-success: #16301f;
+  --me-tint-warn: #3a2f12;
+  --me-tint-error: #3a1a1c;
+  --me-tint-business: #16233a;
+  --me-hover: rgba(255, 255, 255, 0.07);
+  --me-active: rgba(255, 255, 255, 0.12);
+  --me-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+}
+
+:root[data-me-surface='opaque'][data-me-surface-tone='light'] {
+  --me-surface: #ffffff;
+  --me-surface-raised: #f5f6f8;
+  --me-surface-sunken: #eceef2;
+  --me-outline: #d5dae1;
+  --me-tint-success: #e7f6ec;
+  --me-tint-warn: #fdf4d8;
+  --me-tint-error: #fdeceb;
+  --me-tint-business: #e8f1fd;
+  --me-hover: rgba(15, 23, 42, 0.06);
+  --me-active: rgba(15, 23, 42, 0.1);
+  --me-shadow: 0 10px 30px rgba(15, 23, 42, 0.16);
+}
+
+:root[data-me-surface='opaque'] :where(
+  .mt-panel,
+  .me-panel,
+  .coi-root,
+  .bb-pane,
+  .pm-root,
+  .sb-root,
+  .bm-panel,
+  .advisor-panel
+) {
+  /* layout tokens → solid equivalents */
+  --dsw-alias-bg-base: var(--me-surface);
+  --dsw-alias-bg-layer-1: var(--me-surface-raised);
+  --dsw-alias-bg-layer-2: var(--me-surface-sunken);
+  --dsw-alias-bg-layer-3: var(--me-surface-sunken);
+  --dsw-alias-bg-l1: var(--me-surface-raised);
+  --dsw-alias-bg-l2: var(--me-surface-sunken);
+  --dsw-alias-border-l: var(--me-outline);
+  --dsw-alias-border-l2: var(--me-outline);
+  --dsw-alias-border-l3: var(--me-outline);
+  --dsw-alias-border-l4: var(--me-outline);
+  --dsw-alias-interactive-bg-hover: var(--me-hover);
+  --dsw-alias-interactive-bg-active: var(--me-active);
+  --dsw-alias-state-success-tertiary: var(--me-tint-success);
+  --dsw-alias-state-warn-tertiary: var(--me-tint-warn);
+  --dsw-alias-state-warning-tertiary: var(--me-tint-warn);
+  --dsw-alias-state-business-tertiary: var(--me-tint-business);
+  --dsw-alias-state-error-tertiary: var(--me-tint-error);
+
+  background-color: var(--me-surface);
+  border: 1px solid var(--me-outline);
+  border-radius: 12px;
+  box-shadow: var(--me-shadow);
+}
+
+/* Chrome strips: give the tab bars their own surface so tab labels never sit
+   directly on the artwork. */
+:root[data-me-surface='opaque'] :where(
+  .mt-file-tabs,
+  .coi-tabs,
+  .sb-side,
+  .advisor-panel-header,
+  .me-tabs,
+  .bm-panel-header
+) {
+  background-color: var(--me-surface-raised);
+  border-radius: 8px;
+}
+
+/* Notices and warnings: their translucent color-mix() backgrounds stay muddy on
+   top of artwork, so use solid tints in opaque mode. */
+:root[data-me-surface='opaque'] :where(
+  .mt-warning,
+  .mt-notice,
+  .mt-notice-ok,
+  .mt-notice-error,
+  .me-notice,
+  .me-notice-ok,
+  .me-notice-warn,
+  .me-notice-error
+) {
+  background-color: var(--me-surface-raised);
+}
+
+:root[data-me-surface='opaque'] .mt-warning,
+:root[data-me-surface='opaque'] .me-notice-warn {
+  background-color: var(--me-tint-warn);
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+:root[data-me-surface='opaque'] .mt-notice-ok,
+:root[data-me-surface='opaque'] .me-notice-ok {
+  background-color: var(--me-tint-success);
+}
+
+:root[data-me-surface='opaque'] .mt-notice-error,
+:root[data-me-surface='opaque'] .me-notice-error {
+  background-color: var(--me-tint-error);
+}
+
+/* Long-form text blocks inside our panels (kept readable on artwork). Scoped to
+   the plugin roots so the rest of the DSH UI is never affected. */
+:root[data-me-surface='opaque'] :where(.mt-panel, .me-panel, .coi-root, .bb-pane, .pm-root, .sb-root, .bm-panel) :where(pre, code, .mt-preview, .me-notes-pre) {
+  background-color: var(--me-surface-sunken);
+  border-radius: 6px;
+}
