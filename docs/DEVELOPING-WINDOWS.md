@@ -98,11 +98,11 @@ cmp /tmp/before.js lib/client.js   # 必须完全一致，即「重编产物 = �
 ```
 
 > 历史坑：`scripts/build.mjs` 以前只从 `~/.dsh/source/current` 找 esbuild，而
-> `tsconfig.json` 的 `paths` 又全是作者 Mac 路径 `/Users/edgar/.dsh/source/current/**`。
-> 结果是 fork 者 `npm run build` 必然报 `esbuild not found under ...`。
-> 现在 build 已可移植；`tsconfig.json` 的 `paths` 仍指向作者机器，只影响
-> `tsc --noEmit` 类型检查（本插件不用 tsc 出产物，esbuild 只剥离类型不做检查），
-> 如果你要在本地跑类型检查，把 `paths` 改成你自己的 DSH 源码路径即可。
+> `tsconfig.json` 的 `paths` 曾指向原作者的本机目录，fork 者 `npm run build` 必然报
+> `esbuild not found under ...`。现在 build 可移植（优先用仓库自己的 `node_modules`）；
+> `tsconfig.json` 的 `paths` 也改成了仓库内相对路径 `.dsh-source/…`，只影响编辑器类型提示
+> （本插件不用 tsc 出产物，esbuild 只剥离类型不做检查）。要类型提示就把本地 DSH 源码
+> 目录软链成仓库根下的 `.dsh-source/`，不需要时不用管。
 
 ## 5. 排障速查
 

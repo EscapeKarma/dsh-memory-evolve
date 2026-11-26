@@ -25,7 +25,7 @@
 
 | 文档 | 内容 |
 | --- | --- |
-| [CHANGELOG.md](CHANGELOG.md) / [CHANGELOG.en.md](CHANGELOG.en.md) | 中文 / 英文更新日志（按日期倒序；`v0.2.0`、`v0.3.0` 两个社区维护版本在顶部） |
+| [CHANGELOG.md](CHANGELOG.md) / [CHANGELOG.en.md](CHANGELOG.en.md) | 中文 / 英文更新日志（按日期倒序；社区维护版本从 `v0.2.0` 起逐版记录） |
 
 ## 想改文档
 

@@ -5,3 +5,4 @@ node_modules/
 lib.bak-0812/
 .dsh/
 dist/
+.dsh-source/

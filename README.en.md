@@ -18,6 +18,10 @@ The upstream project [csyangwen/dsh-memory-evolve](https://github.com/csyangwen/
 | --- | --- |
 | **v0.2.0** | Fixed 4 blocking bugs (sync false positives, released package missing the worker, plugin failing to load on Cordis 4, tests writing into the real skill library) and 1 security defect (canvas private-key blocking silently ineffective on Windows); added CI; reproducible Windows development; build no longer depends on the original author's machine |
 | **v0.3.0** | Merged 8 community fixes accumulated after upstream went quiet (#102 #78 #79 #101 #70 #111 #60 #56+#89), original authorship preserved; plus 2 Windows fixes |
+| **v0.4.x** | Version page splits by install kind + read-only release check (0.4.0); snapshot no longer injects the session title (0.4.1); turn-tail star, in-page dialogs, subagent cwd bucketing (0.4.2); COI retries keep content, prompts/COI isolated per session (0.4.3) |
+| **v0.5.x** | Security audit, four rounds: all 30 HTTP endpoints behind the plugin's same-origin guard, CLI adapters reduced to a built-in allowlist (0.5.0); data-correctness (0.5.1) and stability (0.5.2) hardening |
+| **v0.6.x** | Frontend fixes: duplicate-submit guards, anchor escaping, per-session race guards, save-failure notice (0.6.0); outbound attachment path checks + audit groups A/B (0.6.1) |
+| **v0.7.x** | Scoped package name, npm + prebuilt tarball release, tag-triggered publishing (0.7.0); HTTP routes now pass DSH's own admission check (0.7.1) |
 
 - **Install from**: `@escapekarma49/dsh-memory-evolve` (npm, since v0.7.0) or `github:EscapeKarma/dsh-memory-evolve` (git source)
 - **License**: MIT (the upstream copyright notice is kept, as MIT requires)
@@ -270,7 +274,7 @@ Runtime settings live under *Settings → Memory Evolve → Configuration*, or i
 | `reviewMode` | `suggest` | `suggest` = proposals go to the queue; `auto` = write directly |
 | `keyProgressiveDisclosure` / `memoryProgressiveDisclosure` / `userProgressiveDisclosure` | `off` | `off` full text / `auto` full for small datasets / `on` always summaries |
 | `summaryMinChars` | `0` | In summary mode, entries whose body is at most this many characters stay fully injected; longer ones fold into a one-line summary. `0`=off (same as before), `400` recommended (~61% saving); available from 0.5.0 |
-| `trustedHosts` | `[]` | Extra Hosts allowed to reach the plugin HTTP API (LAN / reverse-proxy setups). Empty = loopback only; cross-site requests are always rejected. Available from 0.5.0 |
+| `trustedHosts` | `[]` | Extra Hosts allowed to reach the plugin HTTP API (LAN / reverse-proxy setups). Empty = loopback only; cross-site requests are always rejected. Available from 0.5.0; honoured by DSH admission as well since 0.7.1 |
 | `channelSendRoots` | `[]` | Absolute directories allowed for `de_channel_send` / `de_notify` attachments. Empty = no directory limit, but sensitive paths (`.ssh`, `.aws`, `.env`, …) are always refused. Available from 0.6.1 |
 | `projectInjectMode` / `dailyInjectMode` | `off` | project / daily logs are not injected by default (they change on every write, which defeats prefix caching); `tail:N` injects the newest N entries, `always` injects everything |
 | `perTurnWriteGuard` / `writeGuardThreshold` | `false` / `2` | write watchdog: remind after N turns without a log write |
@@ -314,6 +318,9 @@ It compares git tags, so it only works for **git-clone installs**; for `dsh plug
 
 Since v0.4.0 the version page branches by install kind instead of showing a dead button: `git clone` keeps one-click update; marketplace / `dsh plugin add` installs show "managed by the marketplace" plus a copyable upgrade command, and a read-only GitHub check tells you whether a newer version exists.
 
+**Are the plugin's HTTP endpoints safe?**
+Two layers: DSH's own admission first (Host/Origin fence + browser session auth, since v0.7.1), then the plugin's same-origin check (JSON-only writes, cross-site Origin rejected, loopback-only Host, non-loopback peers refused; all 30 endpoints including reads since v0.5.0). Local `curl` calls without a browser cookie skip the auth layer and only face the loopback check, so scripts keep working; remote access is denied by default — opt in via `trustedHosts`.
+
 **The plugin prevents DSH from starting?**
 Add `- id: dsh-memory-evolve` + `disabled: true` to the profile's `cordis.patch.yml`, start DSH, and file an issue.
 
@@ -341,7 +348,7 @@ pnpm test               # macOS / Linux
 pnpm test:win           # Windows (injects git identity and init.defaultBranch=main)
 ```
 
-On Windows plain `pnpm test` produces ~55 false failures (`Author identity unknown`, `src refspec main does not match any`) — use `test:win`. Current baseline: **976 tests / 975 pass / 0 fail / 1 skipped**. Windows-specific notes: [docs/DEVELOPING-WINDOWS.md](docs/DEVELOPING-WINDOWS.md).
+On Windows plain `pnpm test` produces ~55 false failures (`Author identity unknown`, `src refspec main does not match any`) — use `test:win`. Current baseline: **1121 tests / 1120 pass / 0 fail / 1 skipped**. Windows-specific notes: [docs/DEVELOPING-WINDOWS.md](docs/DEVELOPING-WINDOWS.md).
 
 ### Rebuild client artifacts after editing `src/client/`
 
@@ -359,7 +366,7 @@ CI has a "build artifacts match sources" job that rebuilds on ubuntu and diffs; 
 ```
 lib/             host-side hand-written ESM (entry lib/index.js, memory, sync, COI, canvas…)
 src/client/      browser-side TSX (59 files, bundled into lib/client.js by esbuild)
-tests/           72+ test files, ~976 cases
+tests/           80+ test files, ~1121 cases
 skills/          5 built-in skills synced into the skill library
 scripts/         build.mjs, test-win.mjs, sync-worker.mjs (sync child process)
 docs/            CHANGELOG, memory sync, COI dispatch, rules, Windows development

@@ -16,10 +16,13 @@
     "pack:release": "node scripts/pack-release.mjs"
   },
   "license": "MIT",
-  "author": "EscapeKarma",
+  "author": {
+    "name": "EscapeKarma",
+    "url": "https://github.com/EscapeKarma"
+  },
   "contributors": [
     {
-      "name": "dsh-external",
+      "name": "csyangwen (original author)",
       "url": "https://github.com/csyangwen/dsh-memory-evolve"
     }
   ],

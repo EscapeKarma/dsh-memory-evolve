@@ -18,6 +18,10 @@
 | --- | --- |
 | **v0.2.0** | 修 4 个阻塞级 bug（同步误判、发布包丢 worker、Cordis 4 加载失败、测试污染技能库）+ 1 个安全缺陷（画板私钥拦截在 Windows 失效）；接入 CI；Windows 开发可重复；构建不再依赖原作者本机 |
 | **v0.3.0** | 并入作者停更后积压的 8 项社区修复（#102 #78 #79 #101 #70 #111 #60 #56+#89），全部保留原作者署名；另含 2 处 Windows 修复 |
+| **v0.4.x** | 版本页按安装方式分流 + 只读新版检查（0.4.0）；snapshot 不再注入会话标题（0.4.1）；轮尾星标、页面内对话框、子代理执行目录落桶（0.4.2）；COI 重试不丢内容、提示词/COI 按会话隔离（0.4.3） |
+| **v0.5.x** | 安全巡检四刀：30 个 HTTP 端点接入插件同源守卫、COI 适配器改内置白名单（0.5.0）；数据正确性（0.5.1）与稳定性（0.5.2）两批加固 |
+| **v0.6.x** | 前端四修：写操作防重、锚点转义、切会话竞态、保存失败提示（0.6.0）；外发附件路径校验 + 巡检 A/B 组（0.6.1） |
+| **v0.7.x** | 包名改为 scoped、发上 npm 与预构建 tarball、推 tag 自动发版（0.7.0）；HTTP 路由接入 DSH 官方准入检查（0.7.1） |
 
 - **安装地址**：`@escapekarma49/dsh-memory-evolve`（npm，v0.7.0 起）或 `github:EscapeKarma/dsh-memory-evolve`（git 源码）
 - **许可**：MIT（原作者版权行按许可要求保留）
@@ -280,7 +284,7 @@ AI 的对话是「一次性」的：换项目、隔几天、开新会话就忘�
 | `reviewMode` | `suggest` | `suggest`=提议走确认队列；`auto`=直接写 |
 | `keyProgressiveDisclosure` / `memoryProgressiveDisclosure` / `userProgressiveDisclosure` | `off` | `off` 全量注入 / `auto` 小数据量全量 / `on` 始终摘要 |
 | `summaryMinChars` | `0` | 摘要模式下正文不超过该字符数的条目保持全文，更长的才折成摘要行。`0`=关闭（与旧版一致），建议 `400`（实测省约 61%）；相邻版本 0.5.0 起可用 |
-| `trustedHosts` | `[]` | 允许访问插件 HTTP 接口的额外 Host（局域网 / 反向代理场景）。默认空 = 只接受本机回环访问；跨站请求一律拒绝。0.5.0 起可用 |
+| `trustedHosts` | `[]` | 允许访问插件 HTTP 接口的额外 Host（局域网 / 反向代理场景）。默认空 = 只接受本机回环访问；跨站请求一律拒绝。0.5.0 起可用，0.7.1 起同时被 DSH 准入层认可 |
 | `channelSendRoots` | `[]` | 允许通过 `de_channel_send` / `de_notify` 外发的目录白名单（绝对路径）。默认空 = 不限制目录，但敏感路径（`.ssh`、`.aws`、`.env` 等）永远拒绝。0.6.1 起可用 |
 | `projectInjectMode` / `dailyInjectMode` | `off` | project / daily 日志默认不注入（每写必变，会废掉前缀缓存）；`tail:N` 注入最近 N 条、`always` 全量 |
 | `perTurnWriteGuard` / `writeGuardThreshold` | `false` / `2` | 写入看门狗：连续 N 轮没写日志就提醒 |
@@ -322,6 +326,9 @@ github.com 的 443 在你这边可能不稳（`Connection was reset` / `Failed t
 **「检查更新」按钮不起作用？**
 v0.4.0 起按安装方式分流：`git clone` 的可以直接一键更新；市场或 `dsh plugin add` 安装的目录里没有 `.git`，一键更新用不了——版本页会显示「由插件市场管理」，给出升级命令，外加一次只读的 GitHub 检查告诉你有没有新版。
 
+**插件的 HTTP 接口安全吗？**
+两层：先过 DSH 自己的准入（Host/Origin 栅栏 + 浏览器会话认证，v0.7.1 接入），再过插件自己的同源校验（写操作必须 JSON、拒绝跨站 Origin、Host 必须回环、非回环对端拒绝，v0.5.0 起覆盖全部 30 个端点，读端点也在内）。本机 `curl` 一类没有浏览器会话 cookie 的调用会跳过认证层、只受回环校验约束，所以脚本仍可用；非本机访问默认拒绝，要开就配 `trustedHosts`。
+
 **插件让 DSH 起不来怎么办？**
 在 profile 的 `cordis.patch.yml` 加 `- id: dsh-memory-evolve` + `disabled: true`，启动后到仓库提 issue。
 
@@ -349,7 +356,7 @@ pnpm test               # macOS / Linux
 pnpm test:win           # Windows 必须用这个（注入 git 身份与 init.defaultBranch=main）
 ```
 
-`pnpm test` 在 Windows 上会有 55 个假红（`Author identity unknown` / `src refspec main does not match any`）——不是代码问题，用 `test:win`。当前基线：**976 例 / 975 通过 / 0 失败 / 1 跳过**。Windows 专项说明见 [docs/DEVELOPING-WINDOWS.md](docs/DEVELOPING-WINDOWS.md)。
+`pnpm test` 在 Windows 上会有 55 个假红（`Author identity unknown` / `src refspec main does not match any`）——不是代码问题，用 `test:win`。当前基线：**1121 例 / 1120 通过 / 0 失败 / 1 跳过**。Windows 专项说明见 [docs/DEVELOPING-WINDOWS.md](docs/DEVELOPING-WINDOWS.md)。
 
 ### 改客户端代码后必须重建产物
 
@@ -367,7 +374,7 @@ CI 的「构建产物与源码一致」job 会在 ubuntu 上重跑一遍构建�
 ```
 lib/             宿主侧手写 ESM（插件入口 lib/index.js、记忆、同步、COI、画板…）
 src/client/      浏览器侧 TSX（59 个文件，esbuild 打成 lib/client.js）
-tests/           72+ 个测试文件，~976 例
+tests/           80+ 个测试文件，~1121 例
 skills/          随插件同步到技能库的内置技能（5 个）
 scripts/         build.mjs（构建）、test-win.mjs（Windows 测试）、sync-worker.mjs（同步子进程）
 docs/            CHANGELOG、记忆同步、COI 调度、规则、Windows 开发

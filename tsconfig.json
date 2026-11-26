@@ -1,4 +1,12 @@
 {
+  // 编辑器类型提示用的第三方类型入口（不参与构建：esbuild 打包时不读 tsconfig 的 paths）。
+  //
+  // 这里只指向本仓库内的相对位置，避免把某个人的本机路径写进仓库：
+  // 需要类型提示时，把你本地的 DSH 源码 checkout 软链成仓库根下的 `.dsh-source/`，
+  // 例如：mklink /D .dsh-source D:\src\deepseek-harness   （Windows）
+  //       ln -s ~/src/deepseek-harness .dsh-source        （macOS / Linux）
+  // 目录不存在时 TypeScript 会报找不到这些模块的类型，但 `node scripts/build.mjs`
+  // 与全部测试都不受影响。
   "compilerOptions": {
     "target": "ES2022",
     "module": "ESNext",
@@ -14,34 +22,34 @@
     "baseUrl": ".",
     "paths": {
       "react": [
-        "/Users/edgar/.dsh/source/current/node_modules/.pnpm/@types+react@18.3.31/node_modules/@types/react"
+        ".dsh-source/node_modules/.pnpm/@types+react@18.3.31/node_modules/@types/react"
       ],
       "react/jsx-runtime": [
-        "/Users/edgar/.dsh/source/current/node_modules/.pnpm/@types+react@18.3.31/node_modules/@types/react/jsx-runtime.d.ts"
+        ".dsh-source/node_modules/.pnpm/@types+react@18.3.31/node_modules/@types/react/jsx-runtime.d.ts"
       ],
       "cordis": [
-        "/Users/edgar/.dsh/source/current/vendor/cordis/lib/types/index.d.ts"
+        ".dsh-source/vendor/cordis/lib/types/index.d.ts"
       ],
       "@deepseek-ai/dsh-client-ui-slots": [
-        "/Users/edgar/.dsh/source/current/packages/client/ui-slots/lib/types/index.d.ts"
+        ".dsh-source/packages/client/ui-slots/lib/types/index.d.ts"
       ],
       "@deepseek-ai/dsh-client-ui-conversation/client": [
-        "/Users/edgar/.dsh/source/current/packages/client/ui-conversation/lib/types/client/index.d.ts"
+        ".dsh-source/packages/client/ui-conversation/lib/types/client/index.d.ts"
       ],
       "@deepseek-ai/dsh-client-locale/client": [
-        "/Users/edgar/.dsh/source/current/packages/client/locale/lib/types/client/index.d.ts"
+        ".dsh-source/packages/client/locale/lib/types/client/index.d.ts"
       ],
       "@deepseek-ai/dsh-client-runtime/client": [
-        "/Users/edgar/.dsh/source/current/packages/client/runtime/lib/types/client/index.d.ts"
+        ".dsh-source/packages/client/runtime/lib/types/client/index.d.ts"
       ],
       "@deepseek-ai/dsh-client-ui-primitives": [
-        "/Users/edgar/.dsh/source/current/packages/client/ui-primitives/lib/types/index.d.ts"
+        ".dsh-source/packages/client/ui-primitives/lib/types/index.d.ts"
       ],
       "@deepseek-ai/dsh-client-web-react": [
-        "/Users/edgar/.dsh/source/current/packages/client/web-react/lib/types/index.d.ts"
+        ".dsh-source/packages/client/web-react/lib/types/index.d.ts"
       ],
       "@deepseek-ai/dsh-client-ui-settings/client": [
-        "/Users/edgar/.dsh/source/current/packages/client/ui-settings/lib/types/client/index.d.ts"
+        ".dsh-source/packages/client/ui-settings/lib/types/client/index.d.ts"
       ]
     }
   },

@@ -45,7 +45,7 @@ git commit -m "修复：……（现象 / 根因 / 改法 / 测试写清）"
 
 **硬性要求**
 
-- 测试全绿（当前基线：**976 例 / 975 通过 / 0 失败 / 1 跳过**），CI 三个 job 全绿；
+- 测试全绿（当前基线：**1121 例 / 1120 通过 / 0 失败 / 1 跳过**），CI 三个 job 全绿；
 - 不新增运行时依赖（宿主侧只用 Node 内置模块，浏览器侧只用 DSH 提供的模块）；
 - 测试不要写死 POSIX 分隔符、macOS 专属路径、固定 `setTimeout` 等待——CI 在 ubuntu + windows 上跑；
 - 新增文件访问逻辑必须经过敏感目录检查（`lib/canvas.js` 的 `findDeniedFragment` 一族）；
@@ -59,7 +59,7 @@ git commit -m "修复：……（现象 / 根因 / 改法 / 测试写清）"
 现象：……
 根因：git 子进程未固定 locale，中文报错文本匹配不上英文正则
 改法：runGit 注入 LC_ALL=C；worker 正则补中文兜底
-测试：tests/sync-git-locale.test.js（5 例），全量 976/975/0/1
+测试：tests/sync-git-locale.test.js（5 例），全量 1121/1120/0/1
 ```
 
 **合并方式**：维护者会用 `cherry-pick -x` 合入，**保留你的原作者署名**。如果你的分支上有多个 commit，可以 squash 后再提。
