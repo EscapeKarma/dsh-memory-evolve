@@ -64,10 +64,16 @@ jobs:
           set -euo pipefail
           echo "发布 $TAG"
           ls -l dist
+          # 预发布版本（tag 里带 -，如 v0.7.0-rc.1）标成 prerelease，
+          # 避免 releases/latest 被预发布包占走（市场稳定名指向 latest）。
+          PRE=()
+          case "$TAG" in
+            *-*) PRE=(--prerelease) ;;
+          esac
           if gh release view "$TAG" >/dev/null 2>&1; then
             echo "Release 已存在，覆盖资产"
           else
-            gh release create "$TAG" --title "$TAG" --generate-notes
+            gh release create "$TAG" --title "$TAG" --generate-notes "${PRE[@]}"
           fi
           gh release upload "$TAG" dist/*.tgz --clobber
           gh release view "$TAG" --json tagName,assets --jq '{tag:.tagName, assets:[.assets[].name]}'
