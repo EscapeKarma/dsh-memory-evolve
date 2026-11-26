@@ -16,7 +16,7 @@ import { join } from 'node:path'
 import { ArchiveStore, MemoryStore, SuggestionQueue } from '../lib/store.js'
 import { TodoStore } from '../lib/todo.js'
 import { installApi } from '../lib/api.js'
-import { guardRequest, hostName, isTrustedHost, setTrustedHosts } from '../lib/http-guard.js'
+import { guardRequest, hasConnection, hostName, isTrustedHost, setConnection, setTrustedHosts } from '../lib/http-guard.js'
 import { validateRuntimePatch } from '../lib/index.js'
 
 function tempDir() {
@@ -238,4 +238,54 @@ test('端到端：模块级 trustedHosts 生效（setTrustedHosts 后同域可�
   } finally {
     setTrustedHosts([])
   }
+})
+
+// ---------------------------------------------------------------------------
+// 宿主准入层（2026-11-27）：维护者要求插件路由接入 DSH 的 connection 准入，
+// 而不是只靠插件自己的同源校验。语义：403 硬拒绝、401（没有浏览器 cookie）
+// 回落到本插件的回环校验，旧宿主没有该能力时整层跳过。
+// ---------------------------------------------------------------------------
+
+test('宿主准入：requestRejection 返回 403 时一律拒绝（即使是本机同源请求）', () => {
+  setConnection({ requestRejection: () => 403 })
+  try {
+    const failure = guardRequest(req({ headers: { host: '127.0.0.1:7777', origin: 'http://127.0.0.1:7777' } }))
+    assert.equal(failure.code, 'GUARD_DSH_ADMISSION')
+    assert.equal(failure.status, 403)
+  } finally {
+    setConnection(null)
+  }
+})
+
+test('宿主准入：返回 401（无浏览器 cookie）时回落到本机回环校验', () => {
+  setConnection({ requestRejection: () => 401 })
+  try {
+    // 本机脚本（无 Origin、回环对端）继续可用
+    assert.equal(guardRequest(req({ method: 'POST', headers: { host: '127.0.0.1:7777' } })), null)
+    // 跨站请求仍然被插件自己的同源校验拦住
+    const crossSite = guardRequest(req({
+      method: 'POST',
+      headers: { host: '127.0.0.1:7777', origin: 'http://evil.example', 'content-type': 'application/json', 'content-length': '2' },
+    }))
+    assert.equal(crossSite.code, 'GUARD_CROSS_SITE')
+  } finally {
+    setConnection(null)
+  }
+})
+
+test('宿主准入：宿主不提供能力或调用抛错时整层跳过', () => {
+  setConnection({})
+  try {
+    assert.equal(guardRequest(req({ headers: { host: '127.0.0.1:7777' } })), null)
+  } finally {
+    setConnection(null)
+  }
+  setConnection({ requestRejection: () => { throw new Error('boom') } })
+  try {
+    assert.equal(guardRequest(req({ headers: { host: '127.0.0.1:7777' } })), null)
+    assert.equal(hasConnection(), true)
+  } finally {
+    setConnection(null)
+  }
+  assert.equal(hasConnection(), false)
 })
