@@ -16,6 +16,7 @@ on:
 
 permissions:
   contents: write
+  id-token: write # npm provenance（Sigstore 签名）
 
 concurrency:
   group: release-${{ github.event.inputs.tag || github.ref_name }}
@@ -34,6 +35,7 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: '24'
+          registry-url: https://registry.npmjs.org
 
       - uses: pnpm/action-setup@v6
         with:
@@ -90,14 +92,34 @@ jobs:
           echo "$URL → $code"
           test "$code" = "200"
 
-      # GitHub 不会因为 GITHUB_TOKEN 创建 Release 而自动触发 release: published，
-      # 所以正式版本在这里显式派发一次 npm 发布（预发布 tag 不发 npm）。
-      - name: 触发 npm 发布（正式版）
+      # GITHUB_TOKEN 无权派发别的 workflow（403 Resource not accessible by integration），
+      # 也触发不了 release: published，所以正式版本在这里直接发 npm。
+      # 预发布 tag（带 -）不发 npm，避免把 rc 包推成 latest。
+      - name: 发布到 npm（正式版）
         if: ${{ !contains(github.event.inputs.tag || github.ref_name, '-') }}
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           TAG: ${{ github.event.inputs.tag || github.ref_name }}
         run: |
           set -euo pipefail
-          gh workflow run publish-npm.yml -f "version=${TAG#v}"
-          echo "已派发 publish-npm.yml（version=${TAG#v}）"
+          if [ -z "${NODE_AUTH_TOKEN:-}" ]; then
+            echo "::error::缺少 NPM_TOKEN secret：请在仓库 Settings → Secrets and variables → Actions 里添加"
+            exit 1
+          fi
+          VERSION="${TAG#v}"
+          NAME=$(node -p "require('./package.json').name")
+          if npm view "$NAME@$VERSION" version >/dev/null 2>&1; then
+            echo "npm 上已经有 $NAME@$VERSION，跳过发布（可重复执行）"
+            exit 0
+          fi
+          # 发布刚才自检过、并已上传到 Release 的那个 tarball，保证「测的就是发的」
+          npm publish "dist/dsh-memory-evolve-$VERSION.tgz" --access public --provenance
+          for i in 1 2 3 4 5 6; do
+            if npm view "$NAME@$VERSION" version >/dev/null 2>&1; then
+              echo "npm 已上架：$NAME@$VERSION"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::发布后 60 秒内没在 registry 查到 $NAME@$VERSION"
+          exit 1
