@@ -4,6 +4,23 @@
 
 > [English](CHANGELOG.en.md)
 
+## 2026-11-27 · v0.7.1（接入 DSH 官方准入检查 + 文档与作者信息整理）
+
+### 安全
+
+- **HTTP 路由接入 DSH 官方准入**：所有插件端点在做自己的同源校验之前，先问宿主的 `ctx.connection.requestRejection(req)`。宿主返回 **403**（Host/Origin 栅栏判定不可信：跨站网页、DNS rebinding）时直接拒绝；返回 **401**（没有浏览器会话 cookie 的本机 `curl` / CLI 调用）不代表跨站，回落到插件自己的回环校验，脚本用法不受影响；宿主没有该能力（旧版本 / 非 Web 宿主）时整层跳过。这样既满足 DSH 的准入口径，也不会因为缺少会话 cookie 把本机脚本一并封死。
+- `trustedHosts` 与宿主准入叠加生效：写进白名单的 Host 同时被两层认可。
+
+### 文档
+
+- `SECURITY.md` 按当前实现重写：补上宿主准入、外发附件白名单（`channelSendRoots`）、COI 适配器白名单、子进程环境收敛、原子写与注入清洗等条目，「支持的版本」从 v0.3.0 更正到 v0.7.1。
+- `README.md` / `README.en.md` 的版本里程碑表补齐 v0.4–v0.7（原来停在 v0.3.0，与新版本事实不符）。
+- `tsconfig.json` 的 `paths` 不再写死原作者的本机目录，改为仓库内相对路径 `.dsh-source/`（把本地 DSH 源码软链过去即可获得类型提示，不影响构建）；`.gitignore` 忽略该目录；`docs/DEVELOPING-WINDOWS.md` 对应说明同步更新；`tests/store.test.js` 夹具里的原作者路径换成中性示例路径。
+
+### 其它
+
+- `package.json` 的 `author` 改为 `{ "name": "EscapeKarma", "url": … }`，`contributors` 明确标注原作者 csyangwen（MIT 要求的原版权行继续保留在 `LICENSE` 里）。
+
 ## 2026-11-27 · v0.7.0（npm 发布：包名改为 scoped，启用自动发包）
 
 ### 新增

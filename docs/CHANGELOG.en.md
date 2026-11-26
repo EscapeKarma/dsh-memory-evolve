@@ -4,6 +4,23 @@ All version changes for this repository, in reverse chronological order.
 
 > [中文](CHANGELOG.md)
 
+## 2026-11-27 · v0.7.1 (DSH admission integration + docs and author metadata cleanup)
+
+### Security
+
+- **HTTP routes now go through DSH's own admission**: before the plugin's same-origin check, every endpoint asks the host via `ctx.connection.requestRejection(req)`. A **403** (Host/Origin fence: cross-site pages, DNS rebinding) is rejected outright; a **401** (no browser session cookie — local `curl` / CLI calls) does not mean cross-origin, so the plugin falls back to its own loopback check and scripted usage keeps working; if the host has no such service (older versions / non-web hosts) the layer is skipped. This matches the DSH admission convention without locking out local scripts.
+- `trustedHosts` stacks with host admission: a whitelisted Host is accepted by both layers.
+
+### Docs
+
+- `SECURITY.md` rewritten against the current implementation: host admission, outbound attachment allowlist (`channelSendRoots`), CLI adapter allowlist, subprocess environment allowlist, atomic writes and injection sanitisation; "supported versions" corrected from v0.3.0 to v0.7.1.
+- `README.md` / `README.en.md` milestone tables now cover v0.4–v0.7 (they still stopped at v0.3.0).
+- `tsconfig.json` no longer hard-codes the original author's local directory; the type paths point at `.dsh-source/` inside the repository (symlink your DSH checkout there for editor types; builds are unaffected). `.gitignore` ignores that directory, `docs/DEVELOPING-WINDOWS.md` was updated, and the fixture in `tests/store.test.js` uses a neutral example path.
+
+### Other
+
+- `package.json` now declares `author` as `{ "name": "EscapeKarma", "url": … }` and marks the original author csyangwen under `contributors` (the upstream copyright line stays in `LICENSE`, as MIT requires).
+
 ## 2026-11-27 · v0.7.0 (npm release: scoped package name, automated publishing)
 
 ### Added
