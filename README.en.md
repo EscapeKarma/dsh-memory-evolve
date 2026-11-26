@@ -19,7 +19,7 @@ The upstream project [csyangwen/dsh-memory-evolve](https://github.com/csyangwen/
 | **v0.2.0** | Fixed 4 blocking bugs (sync false positives, released package missing the worker, plugin failing to load on Cordis 4, tests writing into the real skill library) and 1 security defect (canvas private-key blocking silently ineffective on Windows); added CI; reproducible Windows development; build no longer depends on the original author's machine |
 | **v0.3.0** | Merged 8 community fixes accumulated after upstream went quiet (#102 #78 #79 #101 #70 #111 #60 #56+#89), original authorship preserved; plus 2 Windows fixes |
 
-- **Install from**: `github:EscapeKarma/dsh-memory-evolve`
+- **Install from**: `@escapekarma49/dsh-memory-evolve` (npm, since v0.7.0) or `github:EscapeKarma/dsh-memory-evolve` (git source)
 - **License**: MIT (the upstream copyright notice is kept, as MIT requires)
 - **Response expectations**: maintained in spare time — issues are read and answered, but no SLA
 - **Report issues**: <https://github.com/EscapeKarma/dsh-memory-evolve/issues> (please include DSH version, OS and reproduction steps; for plugin bugs also the version shown under *Settings → Memory Evolve → Version*)
@@ -32,7 +32,8 @@ The package ships its own `cordis.patch.yml` (declared as `dsh.bundle.patch`), s
 
 ```sh
 # 1. install (or search "dsh-memory-evolve" in the DSH plugin marketplace)
-dsh plugin --profile web add github:EscapeKarma/dsh-memory-evolve
+dsh plugin --profile web add @escapekarma49/dsh-memory-evolve        # npm package (integrity-checked)
+# or from source (same result, can pin unreleased commits): dsh plugin --profile web add github:EscapeKarma/dsh-memory-evolve
 
 # 2. fully quit DSH and start it again (the plugin loads at process start; reloading the page is not enough)
 ```
@@ -53,11 +54,13 @@ The common way, though, is **runtime configuration**: *Settings → Memory Evolv
 **Upgrading**:
 
 ```sh
-dsh plugin --profile web add github:EscapeKarma/dsh-memory-evolve   # re-add pulls the latest
+dsh plugin --profile web add @escapekarma49/dsh-memory-evolve   # re-add pulls the latest
 # then fully quit DSH and start it again
 ```
 
-To pin a version, append a commit or tag: `github:EscapeKarma/dsh-memory-evolve#v0.3.0`.
+To pin a version, append a commit or tag: `github:EscapeKarma/dsh-memory-evolve#v0.6.1`, or on npm `@escapekarma49/dsh-memory-evolve@0.7.0`.
+
+> **Upgrading from v0.6.x (package renamed to a scoped name)**: the Loader entry id stays `dsh-memory-evolve`, so profile config and data need no change; only the dependency name becomes `@escapekarma49/dsh-memory-evolve`. Marketplace/tarball installs get reinstalled by the marketplace; `github:` installs should be re-added once (the old `node_modules/dsh-memory-evolve` directory can be deleted).
 
 **How do I know a new version exists?** Open *Settings → Memory Evolve → Version*. It first tells you **how the plugin is installed**:
 

@@ -311,9 +311,10 @@ DSH 会话之间传递消息的轻量子功能，**独立于 COI 调度框架**�
 报 duplicate loader entry id）：
 
 ```sh
-# 安装到 profile（推荐直接装本 fork 的 GitHub 源；本地目录调试用 link:）
-dsh plugin --profile web add github:EscapeKarma/dsh-memory-evolve
-# 想固定版本：github:EscapeKarma/dsh-memory-evolve#v0.3.0
+# 安装到 profile（npm 包，v0.7.0 起；本地目录调试用 link:）
+dsh plugin --profile web add @escapekarma49/dsh-memory-evolve
+# 从源码安装等价：dsh plugin --profile web add github:EscapeKarma/dsh-memory-evolve
+# 想固定版本：@escapekarma49/dsh-memory-evolve@0.7.0 或 github:EscapeKarma/dsh-memory-evolve#v0.6.1
 ```
 
 如需修改默认配置（如开启回合内记忆审查），在 profile 的 patch 层做 id 覆盖

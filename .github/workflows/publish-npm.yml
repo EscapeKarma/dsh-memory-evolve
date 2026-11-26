@@ -1,0 +1,85 @@
+name: publish-npm
+
+# 发布 GitHub Release 之后把同一个版本发到 npm（scoped 包，公开）。
+# 预发布（rc / beta）不自动发 npm：那些版本先只走 GitHub Release。
+#
+# 需要仓库 secret `NPM_TOKEN`（npm 账号的 Automation token，只对该包有写权限即可）。
+# 手动补发历史版本：gh workflow run publish-npm.yml -f version=0.7.0
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '要发到 npm 的版本号（与 package.json 一致，例如 0.7.0）'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write # npm provenance（Sigstore 签名，可验证发布来源）
+
+concurrency:
+  group: publish-npm-${{ github.event.release.tag_name || inputs.version }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    if: github.event_name != 'release' || github.event.release.prerelease == false
+    steps:
+      - name: 取代码
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.release.tag_name || format('v{0}', inputs.version) }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: 版本号必须与 tag 一致
+        env:
+          TAG: ${{ github.event.release.tag_name || format('v{0}', inputs.version) }}
+        run: |
+          set -euo pipefail
+          VERSION=$(node -p "require('./package.json').version")
+          echo "package.json version=$VERSION tag=$TAG"
+          test "v$VERSION" = "$TAG"
+
+      - name: 发布前自检（打包 → 安装 → 加载 → 跑 worker）
+        run: |
+          set -euo pipefail
+          corepack enable || true
+          pnpm install --frozen-lockfile
+          node --test tests/release-tarball.test.js
+
+      - name: 发到 npm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${NODE_AUTH_TOKEN:-}" ]; then
+            echo "::error::缺少 NPM_TOKEN secret（仓库 Settings → Secrets and variables → Actions）"
+            exit 1
+          fi
+          npm publish --access public --provenance
+
+      - name: 回读 registry 确认
+        run: |
+          set -euo pipefail
+          NAME=$(node -p "require('./package.json').name")
+          VERSION=$(node -p "require('./package.json').version")
+          for i in 1 2 3 4 5 6; do
+            GOT=$(npm view "$NAME@$VERSION" version --silent || true)
+            echo "registry says: ${GOT:-<not yet>}"
+            if [ "$GOT" = "$VERSION" ]; then
+              echo "$NAME@$VERSION 已上架"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::registry 上没查到 $NAME@$VERSION，请到 npmjs.com 复核"
+          exit 1

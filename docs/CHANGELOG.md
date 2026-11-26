@@ -9,6 +9,13 @@
 ### 新增
 
 - 推 `v*` tag 即自动发版：`.github/workflows/release.yml` 会校验 `lib/client.js` 与 `src/client/` 一致、跑发布包自检（打包 / 安装 / 加载 / 跑 worker），再创建或复用该 tag 的 Release 并上传两个 tarball（带版本号 + 稳定名），最后校验稳定名地址可下载。需要补传历史版本时仍可 `pnpm pack:release` 手动上传，或用 `gh workflow run release.yml -f tag=<tag>` 重跑。
+- 新增 `.github/workflows/publish-npm.yml`：Release 发布后（非预发布）把同一版本发到 npm，带 Sigstore provenance 签名，发布后回读 registry 确认真的上架；预发布 tag 不自动发 npm。
+
+### 变更
+
+- **包名改为 `@escapekarma49/dsh-memory-evolve`**（v0.7.0），以便在 npm 上以 scoped 包发布——旧的 `dsh-memory-evolve` 名字已被上游作者占用。**Loader 条目 id 仍是 `dsh-memory-evolve`**：profile 里的配置、记忆数据、设置页 key 都不变，只是依赖名变了。`cordis.patch.yml` 的 `name:` 与 `lib/index.js` 导出的 `name` 随之改为 scoped 包名。
+- 样式归属键跟随包名变为 `@escapekarma49/dsh-memory-evolve`；旧键 `dsh-memory-evolve` 留在 `LEGACY_OWNERS` 里，重新注入时自动迁回，不会留下无主标签。
+- 文档的安装命令改为 npm 首选（`dsh plugin --profile web add @escapekarma49/dsh-memory-evolve`），保留 `github:` 源码安装作为等价方式，并补了「从 v0.6.x 升级」的迁移说明。
 
 ### 文档
 

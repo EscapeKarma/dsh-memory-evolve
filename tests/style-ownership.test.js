@@ -46,11 +46,15 @@ test('样式归属：守卫分支命中已存在标签时抢回归属', () => {
   }
 })
 
-test('样式归属：归属键是包名，与 Loader 条目 id 一致', () => {
+test('样式归属：归属键是包名（v0.7.0 起为 scoped 名），旧键在重新注入时迁回', () => {
   const src = read('src/client/style-tag.ts')
-  assert.match(src, /export const STYLE_OWNER = 'dsh-memory-evolve'/)
   const pkg = JSON.parse(read('package.json'))
-  assert.equal(pkg.name, 'dsh-memory-evolve', '归属键必须等于包名')
+  assert.ok(
+    src.includes(`export const STYLE_OWNER = '${pkg.name}'`),
+    `归属键必须等于包名（当前 ${pkg.name}）`,
+  )
+  assert.match(src, /LEGACY_OWNERS[^\n]*'dsh-memory-evolve'/, '旧键必须留在 LEGACY_OWNERS 里以便迁回')
+  assert.match(src, /ownedByUs\(/, '归属判断必须走 ownedByUs（兼容旧键）')
 })
 
 test('样式归属：构建产物同样带归属（源码改了必须重建 bundle）', () => {

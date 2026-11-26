@@ -19,7 +19,7 @@
 | **v0.2.0** | 修 4 个阻塞级 bug（同步误判、发布包丢 worker、Cordis 4 加载失败、测试污染技能库）+ 1 个安全缺陷（画板私钥拦截在 Windows 失效）；接入 CI；Windows 开发可重复；构建不再依赖原作者本机 |
 | **v0.3.0** | 并入作者停更后积压的 8 项社区修复（#102 #78 #79 #101 #70 #111 #60 #56+#89），全部保留原作者署名；另含 2 处 Windows 修复 |
 
-- **安装地址**：`github:EscapeKarma/dsh-memory-evolve`
+- **安装地址**：`@escapekarma49/dsh-memory-evolve`（npm，v0.7.0 起）或 `github:EscapeKarma/dsh-memory-evolve`（git 源码）
 - **许可**：MIT（原作者版权行按许可要求保留）
 - **响应预期**：业余时间维护，issue 会看、会回，但不承诺时限
 - **报问题**：<https://github.com/EscapeKarma/dsh-memory-evolve/issues>（请附 DSH 版本、操作系统、复现步骤；插件相关请附 `设置 → Memory Evolve → 版本` 里的版本号）
@@ -32,7 +32,8 @@
 
 ```sh
 # 1. 安装（也可在 DSH 插件市场里搜索 dsh-memory-evolve）
-dsh plugin --profile web add github:EscapeKarma/dsh-memory-evolve
+dsh plugin --profile web add @escapekarma49/dsh-memory-evolve        # npm 包，带完整性校验
+# 或从源码装（等价，能拿到尚未发 npm 的提交）：dsh plugin --profile web add github:EscapeKarma/dsh-memory-evolve
 
 # 2. 完全退出 DSH 再打开（插件在进程启动时加载，热刷页面不会加载新代码）
 ```
@@ -53,11 +54,13 @@ dsh plugin --profile web add github:EscapeKarma/dsh-memory-evolve
 **升级**：
 
 ```sh
-dsh plugin --profile web add github:EscapeKarma/dsh-memory-evolve   # 重新 add 即拉到最新
+dsh plugin --profile web add @escapekarma49/dsh-memory-evolve   # 重新 add 即拉到最新
 # 然后完全退出 DSH 再打开
 ```
 
-想固定版本就带上 commit 或 tag：`github:EscapeKarma/dsh-memory-evolve#v0.3.0`。
+想固定版本就带上 commit 或 tag：`github:EscapeKarma/dsh-memory-evolve#v0.6.1`，或 npm 侧写 `@escapekarma49/dsh-memory-evolve@0.7.0`。
+
+> **从 v0.6.x 升级（包名改成 scoped）**：Loader 条目 id 仍是 `dsh-memory-evolve`，profile 里的配置与数据都不用动；只是依赖名变成 `@escapekarma49/dsh-memory-evolve`。用市场/tarball 装的会由市场重装一次；用 `github:` 装的建议重新 `add` 一次（旧的 `node_modules/dsh-memory-evolve` 目录可手动删掉）。
 
 **怎么知道自己有没有新版？** 打开「设置 → Memory Evolve → 版本」，它会先告诉你**安装方式**：
 

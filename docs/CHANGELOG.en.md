@@ -9,6 +9,13 @@ All version changes for this repository, in reverse chronological order.
 ### Added
 
 - Release automation: pushing a `v*` tag now runs `.github/workflows/release.yml`, which verifies `lib/client.js` matches `src/client/`, runs the release tarball self-check (pack / install / load / run the worker), then creates or reuses that tag's Release and uploads both tarballs (versioned + stable name) and finally verifies the stable-name URL is downloadable. Backfilling an old tag is still possible via `pnpm pack:release` or `gh workflow run release.yml -f tag=<tag>`.
+- `.github/workflows/publish-npm.yml`: when a Release is published (and it is not a pre-release), the same version is published to npm with Sigstore provenance and the job re-reads the registry to confirm it landed. Pre-release tags are not auto-published to npm.
+
+### Changed
+
+- **The package is now named `@escapekarma49/dsh-memory-evolve`** (v0.7.0) so it can be published as a scoped npm package — the plain `dsh-memory-evolve` name still belongs to the upstream author. **The Loader entry id stays `dsh-memory-evolve`**: profile config, memory data and the settings-page key are unchanged; only the dependency name moves. `cordis.patch.yml`'s `name:` and the `name` exported from `lib/index.js` follow the scoped package name.
+- The style-ownership key follows the package name (`@escapekarma49/dsh-memory-evolve`); the old key `dsh-memory-evolve` stays in `LEGACY_OWNERS` and is migrated on the next injection, so no orphan tags are left behind.
+- Install commands in the docs now prefer npm (`dsh plugin --profile web add @escapekarma49/dsh-memory-evolve`), keep `github:` as an equivalent source install, and document the v0.6.x → v0.7.0 migration.
 
 ### Docs
 

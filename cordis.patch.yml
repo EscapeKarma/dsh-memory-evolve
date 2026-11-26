@@ -2,9 +2,15 @@
 # plugin roster. The browser half rides the package's `dsh.client` manifest
 # (the client registry serves lib/client.js), and this row materializes the
 # memory / skills / todos / CLI-dispatch host plugin on boot.
+#
+# `id` is the stable Loader entry id and must NOT change: profiles, the
+# settings section key and the client style-ownership bookkeeping all key off
+# it. `name` is the package specifier resolved by node, so it follows the
+# published package name (`@escapekarma49/dsh-memory-evolve` since v0.7.0).
+#
 # Install with `dsh plugin --profile <name> add <path-or-git-url>`; the bundle
 # patch is applied automatically, so do NOT insert this row again in the
 # profile patch (duplicate ids crash the loader).
 - insert:
     - id: dsh-memory-evolve
-      name: 'dsh-memory-evolve'
+      name: '@escapekarma49/dsh-memory-evolve'
