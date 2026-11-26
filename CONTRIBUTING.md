@@ -80,6 +80,17 @@ git commit -m "修复：……（现象 / 根因 / 改法 / 测试写清）"
 - 面向使用者的说明在 `README.md` / `README.en.md`（两份镜像），细节在 `README-详细说明.md`
 - 开发相关在 `docs/DEVELOPING-WINDOWS.md`、`docs/rules.md`（记忆与审查规则）、`docs/记忆同步.md`、`docs/COI-调度.md`
 
+## 推送代码（网络不稳时）
+
+`github.com:443` 在本机有时会整段超时（部分 IP 不通），`git push` 直接失败。不要手动改 hosts，用仓库自带的推送助手：
+
+```bash
+pnpm push                              # push 当前分支到 origin
+pnpm push origin refs/tags/v0.7.2      # push 指定 tag
+```
+
+它先直连（正常时 1–2 秒），失败后自动挑一个可达的 `github.com` IP、在本机起一个只做 TCP 转发的 TLS 直通代理（`127.0.0.1:8899`，证书校验仍由 git 完成），再重试；全部失败才报错。可用环境变量覆盖：`GH_TARGET_IP`（逗号分隔候选 IP）、`GH_PROXY_PORT`、`GH_PUSH_ATTEMPTS`。
+
 ## 发版（维护者）
 
 1. 改两份 CHANGELOG 与 `package.json` 的 `version`，提交推送；

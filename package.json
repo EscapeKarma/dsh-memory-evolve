@@ -13,7 +13,8 @@
     "test": "node --test 'tests/*.test.js'",
     "test:win": "node scripts/test-win.mjs",
     "build": "node scripts/build.mjs",
-    "pack:release": "node scripts/pack-release.mjs"
+    "pack:release": "node scripts/pack-release.mjs",
+    "push": "node scripts/push.mjs"
   },
   "license": "MIT",
   "author": {
